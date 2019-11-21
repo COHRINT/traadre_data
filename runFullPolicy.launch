@@ -1,0 +1,36 @@
+<launch>
+  <!-- Launch a mini policy for debugging -->
+    <arg name="debug" value="false"/>
+    
+    <arg name="launch_prefix" if="$(arg debug)" default="gdb -ex run --args"/>
+    <arg name="launch_prefix" unless="$(arg debug)" default=""/>
+    <arg name="policy_package" value="custom4.pkl"/>
+
+    <arg name="joy_dev" default="/dev/input/js0
+"/>
+    
+    <group ns="policy">
+    	   <node pkg="policy_server" type="PolicyServer.py" name="policy_server" output="screen">
+	   	 <param name="policy" value="$(find policy_server)/config/$(arg policy_package)" />
+		 <remap from="state" to="/state" />
+	   </node>
+    </group>
+    <!-- Topic mux to select between autonomous aid and ground control aid -->
+    <node pkg="topic_tools" type="mux" name = "mux_steer" args="/steer /policy/current_steer ui/steer" />
+    
+    <!-- Start some UI -->
+    <group ns="ui">
+    	    <node pkg="traadre_dla" type="interface.py" name="interface" output="screen">
+	    	  <remap from="dem" to="/policy/dem"/>
+		  <remap from="pose" to="/pose"/>
+		  <remap from="state" to="/state"/>
+		  <remap from="current_goal" to="/policy/current_goal"/>
+		  <remap from="hazmap" to="/policy/hazmap"/>
+	    </node>
+	    <node pkg="joy" type="joy_node" name="joy_ground" output="screen">
+	    	  <param name="dev" value="$(arg joy_dev)"/>
+	    </node>
+    </group>
+
+    
+</launch>
