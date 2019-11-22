@@ -24,7 +24,7 @@ from cv_bridge import CvBridge, CvBridgeError
 def makeTransparentPlane(wind):
 	
 	scale = QPixmap('images/DEM.png')
-	testMap = QPixmap(scale.size().width(),scale.size().height()); 
+	testMap = QPixmap(scale.size().width()/10,scale.size().height()/10); 
 	testMap.fill(QtCore.Qt.transparent); 
 	return testMap; 
 
@@ -57,7 +57,8 @@ class SimulationWindow(QWidget):
 
 		self.make_connections();
 		self.showMaximized();
-
+		print 'Columns: ' + str(self.layout.columnCount())
+		print 'Rows: ' + str(self.layout.rowCount())
 		self.setWindowState(Qt.WindowMaximized);
 		self.dem_sub = rospy.Subscriber('dem', Image, self.dem_cb)
 		self.odom_sub = rospy.Subscriber('state', RobotState, self.robot_odom_cb)
@@ -89,15 +90,17 @@ class SimulationWindow(QWidget):
 		self.image =  QPixmap('images/DEM.png')
 
 		#self.minimapScene.addPixmap(self.image); 
+		#make sketchPlane --------------------
+		#self.sketchPlane = self.minimapScene.addPixmap(makeTransparentPlane(self)); 
+
 		self.minimapView.setScene(self.minimapScene);
 		#self.minimapView.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 		#self.minimapView.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-		self.layout.addWidget(self.minimapView,1,1,1,1);
-		#make sketchPlane --------------------
-		self.sketchPlane = makeTransparentPlane(self); 
+		self.layout.addWidget(self.minimapView,1,1,8,11);
+
 
 		#Add arrow
-		self.thisRobot = QArrow.QArrow(color=QColor(255,0,0,255))
+		self.thisRobot = QArrow.QArrow(color=QColor(0,150,0,200))
 		self.minimapScene.addItem(self.thisRobot);
 		self.thisRobot.setZValue(2)
 
@@ -133,7 +136,7 @@ class SimulationWindow(QWidget):
 
 
 
-		self.layout.addLayout(sliderLayout,9,1,1,6) 
+		self.layout.addLayout(sliderLayout,9,1,1,11) 
 
 		#---------------------------------------------
 		self.time = QLineEdit(); 
@@ -144,7 +147,7 @@ class SimulationWindow(QWidget):
 		self.time.setStyleSheet("background-color: white; border: 4px inset grey;")
 
 
-		self.layout.addWidget(self.time,5,20,1,3) 
+		#self.layout.addWidget(self.time,5,20,1,3) 
 
 		#----------------------------------------------
 		self.stateLayout = QGridLayout();
@@ -168,7 +171,7 @@ class SimulationWindow(QWidget):
 		self.stateLayout.addWidget(self.xQ,12,1,1,1);
 		self.stateLayout.addWidget(self.goal,12,4,1,1);
 		self.stateLayout.addWidget(self.xP,11,4,1,1); 
-		self.layout.addWidget(stateGroup,11,1,1,4)
+		self.layout.addWidget(stateGroup,10,1,1,11)
 
 		#------------------------------------------
 
@@ -184,8 +187,9 @@ class SimulationWindow(QWidget):
 	def buildTable(self):
 		self.table = QTableWidget(len(self.goal_titles),5,self)
 
-		self.table.setHorizontalHeaderLabels(('Goal ID', 'Pos X', 'Pos Y','Theta','Fuel'))
+		self.table.setHorizontalHeaderLabels(('Goal ID', 'Pos X', 'Pos Y','Reward','Fuel Cost'))
 		self.table.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+		self.table.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 		self.table.setMaximumWidth(self.table.horizontalHeader().length()+30)
 		self.table.setMaximumHeight(self.table.verticalHeader().length()+25)
 
@@ -207,7 +211,7 @@ class SimulationWindow(QWidget):
 			self.table.setItem(i, 3, item_theta)
 			self.table.setItem(i, 4, item_fuel)
 
-		self.layout.addWidget(self.table, 1, 20, 5 , 10)
+		self.layout.addWidget(self.table, 1, 17, 6 , 10)
 
 	def getGoals_client(self):
 		try:
@@ -296,11 +300,11 @@ class SimulationWindow(QWidget):
 
 		scale = 0.5
 		print self.w, self.h
-		#self.minimapScene.setSceneRect(-50, -50, self.w*scale+10, self.h*scale+10)
-
+		
+		self.minimapScene.setSceneRect(0,0, self.w, self.h)
 		
 
-		#self.fitInView(self.minimapScene.sceneRect(), Qt.KeepAspectRatio)
+		self.minimapView.fitInView(self.minimapScene.sceneRect())
 		#self.centerOn(self._dem_item)
 		#self.show()
 		bounds = self.minimapScene.sceneRect()
@@ -352,7 +356,7 @@ class SimulationWindow(QWidget):
 
 				if pixColor == 0:
 					#hazTrans.setPixelColor(col, row, QColor(255, 0, 0, 32))
-					hazTrans.setPixel(col,row,qRgba(255,0,0,255))
+					hazTrans.setPixel(col,row,qRgba(255,0,0,150))
 				else:
 					   #hazTrans.setPixelColor(col, row, QColor(0, 0, 0, 0))
 					hazTrans.setPixel(col,row,qRgba(255,255,255,0))
