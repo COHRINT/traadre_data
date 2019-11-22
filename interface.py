@@ -17,6 +17,8 @@ from sensor_msgs.msg import *
 
 import numpy as np
 import cv2
+import copy
+
 from cv_bridge import CvBridge, CvBridgeError
 
 def makeTransparentPlane(wind):
@@ -62,7 +64,8 @@ class SimulationWindow(QWidget):
 		self.goal_sub = rospy.Subscriber('current_goal', NamedGoal, self.goal_cb)
 		# self.populated = False
 
-
+		self._colors = [(125, 0, 125), (68, 134, 252), (236, 228, 46), (102, 224, 18), (242, 156, 6), (240, 64, 10), (196, 30, 250)]
+		self._goalLocations = [(0,0)]
 
 		rospy.init_node('interface')
 
@@ -76,6 +79,7 @@ class SimulationWindow(QWidget):
 		self.hazmap_changed.connect(self._updateHazmap)
 		self._dem_item = None
 		self._goalIcon = None
+		self._goalID = ''
 		self._robotIcon = None
 		self.demDownsample = 4
 
@@ -158,7 +162,7 @@ class SimulationWindow(QWidget):
 		self.fuel.setText('Fuel Remaining: 100%')
 		self.xP.setText('Outcome Assessment: 0.1')
 		self.xQ.setText('Solver Quality: 0.8')
-		self.goal.setText('Current Goal: A')
+		self.goal.setText('Current Goal: ' + self._goalID)
 
 		self.stateLayout.addWidget(self.fuel,11,1,1,1); 
 		self.stateLayout.addWidget(self.xQ,12,1,1,1);
@@ -215,6 +219,14 @@ class SimulationWindow(QWidget):
 		except rospy.ServiceException, e:
 			print "Service call failed: %s"%e
 
+	def setCurrentGoal_client(self,id):
+		try:
+			goal = rospy.ServiceProxy('/policy/policy_server/SetCurrentGoal', SetCurrentGoal)
+
+			response = goal(id)
+			return response.goal
+		except rospy.ServiceException, e:
+			print "Service call failed: %s"%e
 
 	def state_callback(self, data):			
 		self.lastStateMsg = data
@@ -250,18 +262,19 @@ class SimulationWindow(QWidget):
 			thisGoal.setFont(QFont("SansSerif", max(self.h / 20.0,3), QFont.Bold))
 			thisGoal.setBrush(QBrush(QColor(self._colors[1][0], self._colors[1][1], self._colors[1][2])))          
 			self._goalIcon = thisGoal
-			self._scene.addItem(thisGoal)
+			self.minimapScene.addItem(thisGoal)
+
 			
 		#Update the label's text:
 		self._goalIcon.setText(str(self._goalID))
-		
+		self.goal.setText('Current Goal: ' + self._goalID)
 		#Pick up the world coordinates
-		world = copy.deepcopy(self._goalLocations[0])
+		world = list(copy.deepcopy(self._goalLocations[0]))
 
 		iconBounds = self._goalIcon.boundingRect()
 
-		world[0] /= self.demDownsample
-		world[1] /= self.demDownsample
+		world[0] = world[0]/self.demDownsample
+		world[1] = world[0]/self.demDownsample
 		
 		#Adjust the world coords so that the icon is centered on the goal
 		world[0] = world[0] - iconBounds.width()/2 
@@ -301,6 +314,8 @@ class SimulationWindow(QWidget):
 		self.hazmap_sub = rospy.Subscriber('hazmap', Image, self.hazmap_cb)
 
 		self.goal_titles, self.row = self.getGoals_client()
+		self._goalID = 'A'
+		self.setCurrentGoal_client('A')
 
 		self.allGoals = zip(self.goal_titles, self.row) #Zip the tuples together so I get a list of tuples (instead of a tuple of lists)
 		self.allGoals = sorted(self.allGoals, key=lambda param: param[0]) #Sort the combined list by the goal ID
@@ -336,11 +351,11 @@ class SimulationWindow(QWidget):
 				pixColor = self.hazmap[row,col]
 
 				if pixColor == 0:
-					   #hazTrans.setPixelColor(col, row, QColor(255, 0, 0, 32))
-					hazTrans.setPixel(col,row,0xffff0000)
+					#hazTrans.setPixelColor(col, row, QColor(255, 0, 0, 32))
+					hazTrans.setPixel(col,row,qRgba(255,0,0,255))
 				else:
 					   #hazTrans.setPixelColor(col, row, QColor(0, 0, 0, 0))
-					hazTrans.setPixel(col,row,0xdddddddd)
+					hazTrans.setPixel(col,row,qRgba(255,255,255,0))
 
 
 		self.hazmapItem = self.minimapScene.addPixmap(QPixmap.fromImage(hazTrans)) #.scaled(self.w*100,self.h*100))
@@ -416,7 +431,7 @@ class SimulationWindow(QWidget):
 		print 'Got Goal at: ' + str(worldX) + ',' + str(worldY)
 
 		self._goal = [msg.id, worldX, worldY]
-		self.goal_changed.emit()
+		self.goals_changed.emit()
 def main():
 		app = QApplication(sys.argv)
 		coretools_app = SimulationWindow()
