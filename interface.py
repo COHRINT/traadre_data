@@ -9,6 +9,7 @@ import sys,os, os.path
 import rospy
 import signal
 import QArrow
+import math
 import RobotIcon
 from traadre_msgs.msg import *
 from traadre_msgs.srv import *
@@ -36,7 +37,7 @@ class SimulationWindow(QWidget):
 	dem_changed = pyqtSignal()
 	robot_odom_changed = pyqtSignal()
 	goals_changed = pyqtSignal()
-	hazmap_changed = pyqtSignal()
+	hazmap_changed = pyqtSignal(int)
 	rightClick = pyqtSignal(int,int)
 	state = pyqtSignal(int,int)
 
@@ -61,9 +62,11 @@ class SimulationWindow(QWidget):
 		print 'Rows: ' + str(self.layout.rowCount())
 		self.setWindowState(Qt.WindowMaximized);
 		self.dem_sub = rospy.Subscriber('dem', Image, self.dem_cb)
-		self.odom_sub = rospy.Subscriber('state', RobotState, self.robot_odom_cb)
+		self.odom_sub = rospy.Subscriber('state', RobotState, self.state_callback)
 		self.goal_sub = rospy.Subscriber('current_goal', NamedGoal, self.goal_cb)
 		# self.populated = False
+
+		self.a = 255*.3
 
 		self._colors = [(125, 0, 125), (68, 134, 252), (236, 228, 46), (102, 224, 18), (242, 156, 6), (240, 64, 10), (196, 30, 250)]
 		self._goalLocations = [(0,0)]
@@ -78,11 +81,15 @@ class SimulationWindow(QWidget):
 		self.goals_changed.connect(self._updateGoal)
 		self.dem_changed.connect(self._update)
 		self.hazmap_changed.connect(self._updateHazmap)
+		self.robot_odom_changed.connect(self._updateRobot)
 		self._dem_item = None
 		self._goalIcon = None
+		self.gworld = [0,0]
+		self.hazmapItem = None
 		self._goalID = ''
 		self._robotIcon = None
 		self.demDownsample = 4
+		self.count = 0
 
 		#Minimap ---------------------------
 		self.minimapView = QGraphicsView(self); 
@@ -175,6 +182,10 @@ class SimulationWindow(QWidget):
 
 		#------------------------------------------
 
+	def sliderChanged(self):
+		self.a = 255*self.beliefOpacitySlider.sliderPosition()/100
+		self.hazmap_changed.emit(self.a)
+
 
 	def operator_toast(self):
 		toast = QInputDialog()
@@ -245,18 +256,6 @@ class SimulationWindow(QWidget):
 
 		self.location_update.emit(self.worldX, self.worldY, self.worldYaw, self._robotFuel)
 
-	def robot_odom_cb(self, msg):
-
-		#Resolve the odometry to a screen coordinate for display from a RobotState message
-
-		worldX = msg.pose.position.x
-		worldY = msg.pose.position.y
-		worldZ = msg.pose.position.z
-		
-		worldRoll, worldPitch, worldYaw = euler_from_quaternion([msg.pose.orientation.x,
-																 msg.pose.orientation.y,
-																 msg.pose.orientation.z,
-																 msg.pose.orientation.w],'sxyz')
 	def _updateGoal(self):
 		#Redraw the goal locations
 		#print 'Updating goal locations'
@@ -273,25 +272,30 @@ class SimulationWindow(QWidget):
 		self._goalIcon.setText(str(self._goalID))
 		self.goal.setText('Current Goal: ' + self._goalID)
 		#Pick up the world coordinates
-		world = list(copy.deepcopy(self._goalLocations[0]))
+		self._goalLocations = [self._goal[1], self._goal[2]]
+
+		world = list(copy.deepcopy(self._goalLocations))
 
 		iconBounds = self._goalIcon.boundingRect()
 
 		world[0] = world[0]/self.demDownsample
-		world[1] = world[0]/self.demDownsample
+		world[1] = world[1]/self.demDownsample
 		
 		#Adjust the world coords so that the icon is centered on the goal
-		world[0] = world[0] - iconBounds.width()/2 
-		world[1] = world[1] - iconBounds.height()/2 #mirror the y coord
+		self.gworld[0] = world[0] - iconBounds.width()/2 
+		self.gworld[1] = world[1] - iconBounds.height()/2 #mirror the y coord
 
 		#        world[1] = self.h - (world[1] + iconBounds.height()/2) #mirror the y coord
 		#        print 'Ymax:', self.h
 		print 'Drawing goal ', self._goalID, ' at ', world
-		self._goalIcon.setPos(QPointF(world[0], world[1]))
+		self._goalIcon.setPos(QPointF(self.gworld[0], self.gworld[1]))
+		self.robot_odom_changed.emit()
+
+
 
 	def _update(self):
 		if self._dem_item:
-			self._scene.removeItem(self._dem_item)
+			self.minimapScene.removeItem(self._dem_item)
 
 		pixmap = QPixmap.fromImage(self._dem)
 		#pixmap = pixmap.scaled(self.sketchPlane.width(), self.sketchPlane.height())
@@ -309,44 +313,74 @@ class SimulationWindow(QWidget):
 		#self.show()
 		bounds = self.minimapScene.sceneRect()
 		#print 'Bounds:', bounds
-		#Allow the robot position to be drawn on the DEM 
-		self.robot_odom_changed.connect(self._updateRobot)
-		self.goals_changed.connect(self._updateGoal)
-		self.goal_sub = rospy.Subscriber('current_goal', NamedGoal, self.goal_cb)
 
 		#Overlay the hazmap now that the dem is loaded
 		self.hazmap_sub = rospy.Subscriber('hazmap', Image, self.hazmap_cb)
 
+
 		self.goal_titles, self.row = self.getGoals_client()
-		self._goalID = 'A'
-		self.setCurrentGoal_client('A')
+
 
 		self.allGoals = zip(self.goal_titles, self.row) #Zip the tuples together so I get a list of tuples (instead of a tuple of lists)
 		self.allGoals = sorted(self.allGoals, key=lambda param: param[0]) #Sort the combined list by the goal ID
-				
+		self.allGoalsDict = dict(self.allGoals)
+
+		if self._goalID == '':
+			self._goalID = self.allGoalsDict.keys()[self.count]
+		else:
+			self.count = self.count +1
+			self._goalID = self.allGoalsDict.keys()[self.count]
+		self.setCurrentGoal_client(self._goalID)		
+
 		self.buildTable()
+		self.beliefOpacitySlider.valueChanged.connect(self.sliderChanged); 
 
 	def _updateRobot(self):
 		#Redraw the robot locations
+		location = self.allGoalsDict[self.allGoals[self.count-1][0]]
+		print self.allGoals[self.count][1].x
+
 		#print 'Updating robot locations'
 		#If this is the first time we've seen this robot, create its icon
-		if self._robotIcon == None:
-			thisRobot = QArrow.QArrow(color=QColor(self._colors[0][0], self._colors[0][1], self._colors[0][2]))
-			self._robotIcon = thisRobot
-			self._scene.addItem(thisRobot)
+		#if self._robotIcon == None:
+		#	thisRobot = QArrow.QArrow(color=QColor(self._colors[0][0], self._colors[0][1], self._colors[0][2]))
+		#	self._robotIcon = thisRobot
+			
+		world = list(copy.deepcopy([location.x,location.y]))
+
+		iconBounds = self.thisRobot.boundingRect()
+
+		world[0] = world[0]/self.demDownsample
+		world[1] = world[1]/self.demDownsample
+		
+		#Adjust the world coords so that the icon is centered on the goal
+		world[0] = world[0] - iconBounds.width()/2 
+		world[1] = world[1] - iconBounds.height()/2 #mirror the y coord
+		
+		dx = (self.gworld[0] - world[0])
+		dy = (self.gworld[1] - world[1])
+
+		self.thisRobot.setTransformOriginPoint(QPoint(iconBounds.width()/2, iconBounds.height()/2))
+		self.thisRobot.setPos(QPointF(world[0], world[1]))
+		self.thisRobot.setRotation(math.atan(dy/dx)*180/math.pi -90)
+
 
 	def hazmap_cb(self, msg):
 		#Unlike the dem, the hazmap is pretty standard - gray8 image
 		self.hazmap = CvBridge().imgmsg_to_cv2(msg, desired_encoding="passthrough")
 
 		self.hazmapImage = QImage(self.hazmap, msg.width, msg.height, QImage.Format_Grayscale8)
-		self.hazmap_changed.emit()
+		self.hazmap_changed.emit(self.a)
+	
 
-	def _updateHazmap(self):
+	def _updateHazmap(self, a):
+		if self.hazmapItem:
+			self.minimapScene.removeItem(self.hazmapItem)
 		print 'Rendering hazmap'
-
+		
 		hazTrans = QImage(self.hazmapImage.width(), self.hazmapImage.height(), QImage.Format_ARGB32)
 		#hazTrans.fill(Qt.transparent)
+
 
 		for row in range(0, self.hazmapImage.height()):
 			for col in range(0, self.hazmapImage.width()):
@@ -356,7 +390,7 @@ class SimulationWindow(QWidget):
 
 				if pixColor == 0:
 					#hazTrans.setPixelColor(col, row, QColor(255, 0, 0, 32))
-					hazTrans.setPixel(col,row,qRgba(255,0,0,150))
+					hazTrans.setPixel(col,row,qRgba(255,0,0,a))
 				else:
 					   #hazTrans.setPixelColor(col, row, QColor(0, 0, 0, 0))
 					hazTrans.setPixel(col,row,qRgba(255,255,255,0))
