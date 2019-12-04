@@ -86,7 +86,7 @@ class SimulationWindow(QWidget):
 		self._goalIcon = None
 		self.gworld = [0,0]
 		self.hazmapItem = None
-		self._goalID = ''
+		self._goalID = 'Start'
 		self._robotIcon = None
 		self.demDownsample = 4
 		self.count = 0
@@ -103,7 +103,7 @@ class SimulationWindow(QWidget):
 		self.minimapView.setScene(self.minimapScene);
 		#self.minimapView.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 		#self.minimapView.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-		self.layout.addWidget(self.minimapView,1,1,8,11);
+		self.layout.addWidget(self.minimapView,1,1,2,8);
 
 
 		#Add arrow
@@ -111,26 +111,6 @@ class SimulationWindow(QWidget):
 		self.minimapScene.addItem(self.thisRobot);
 		self.thisRobot.setZValue(2)
 
-		#------------------------------------------------
-		self.pushLayout = QGridLayout();
-
-		goGroup = QGroupBox()
-		goGroup.setLayout(self.pushLayout)
-
-		goGroup.setStyleSheet("QGroupBox {background-color: white; border: 4px inset grey;}")
-
-		self.go_btn = QPushButton('Go',self)
-		self.nogo_btn = QPushButton('No Go',self)
-
-		self.pushLayout.addWidget(self.go_btn,9,16,1,3); 
-		self.go_btn.setStyleSheet("background-color: green")
-
-		self.pushLayout.addWidget(self.nogo_btn,9,19,1,3); 
-		self.nogo_btn.setStyleSheet("background-color: red")
-
-		self.go_btn.clicked.connect(self.operator_toast)
-		self.nogo_btn.clicked.connect(self.operator_toast)
-		self.layout.addWidget(goGroup,9,16,2,14)
 
 		#Hazard slider --------------------------------
 		sliderLayout = QGridLayout(); 
@@ -141,9 +121,7 @@ class SimulationWindow(QWidget):
 
 		sliderLayout.addWidget(self.beliefOpacitySlider,0,0);
 
-
-
-		self.layout.addLayout(sliderLayout,9,1,1,11) 
+		self.layout.addLayout(sliderLayout,9,1,1,8) 
 
 		#---------------------------------------------
 		self.time = QLineEdit(); 
@@ -162,7 +140,7 @@ class SimulationWindow(QWidget):
 		stateGroup = QGroupBox()
 		stateGroup.setLayout(self.stateLayout)
 
-		stateGroup.setStyleSheet("QGroupBox {background-color: white; border: 4px inset grey;}")
+		stateGroup.setStyleSheet("background-color: white; border: 4px inset grey;")
 
 		self.fuel = QLabel()
 		self.xP = QLabel()
@@ -178,9 +156,35 @@ class SimulationWindow(QWidget):
 		self.stateLayout.addWidget(self.xQ,12,1,1,1);
 		self.stateLayout.addWidget(self.goal,12,4,1,1);
 		self.stateLayout.addWidget(self.xP,11,4,1,1); 
-		self.layout.addWidget(stateGroup,10,1,1,11)
+		self.layout.addWidget(stateGroup,10,1,1,8)
 
 		#------------------------------------------
+		self.pushLayout = QGridLayout();
+
+		goGroup = QGroupBox()
+		goGroup.setLayout(self.pushLayout)
+
+		goGroup.setStyleSheet("QGroupBox {background-color: white; border: 4px inset grey;}")
+
+		self.go_btn = QPushButton('Go',self)
+
+		self.pushLayout.addWidget(self.go_btn,6,19,1,1); 
+		self.go_btn.setStyleSheet("background-color: green; color: white")
+
+		self.go_btn.clicked.connect(self.operator_toast)
+
+		self.table = QTableWidget(9,5,self)
+
+		self.table.setHorizontalHeaderLabels(('Goal ID', 'Pos X', 'Pos Y','Reward','Fuel Cost'))
+		self.table.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+		#self.table.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+		self.table.setStyleSheet("background-color: grey")
+		self.table.setMaximumWidth(self.table.horizontalHeader().length()+30)
+		self.table.setMaximumHeight(self.table.verticalHeader().length()+30)
+
+
+		self.pushLayout.addWidget(self.table,6,16,1,1); 
+		self.layout.addWidget(goGroup,9,16,2,10)
 
 	def sliderChanged(self):
 		self.a = 255*self.beliefOpacitySlider.sliderPosition()/100
@@ -191,18 +195,15 @@ class SimulationWindow(QWidget):
 		toast = QInputDialog()
 		self.val, okPressed = toast.getInt(self, "Confidence","Rate Your Confidence:", 1, 0, 5, 1)
 
+		if okPressed:
+			self.count = self.count +1
+			self.goals_changed.emit()
+
 	def make_connections(self): 
 		#Handler for final sketches
 		pass
 
 	def buildTable(self):
-		self.table = QTableWidget(len(self.goal_titles),5,self)
-
-		self.table.setHorizontalHeaderLabels(('Goal ID', 'Pos X', 'Pos Y','Reward','Fuel Cost'))
-		self.table.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-		self.table.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-		self.table.setMaximumWidth(self.table.horizontalHeader().length()+30)
-		self.table.setMaximumHeight(self.table.verticalHeader().length()+25)
 
 		for i in range(0,self.table.rowCount()):
 			self.item = QTableWidgetItem(self.allGoals[i][0])
@@ -222,8 +223,7 @@ class SimulationWindow(QWidget):
 			self.table.setItem(i, 3, item_theta)
 			self.table.setItem(i, 4, item_fuel)
 
-		self.layout.addWidget(self.table, 1, 17, 6 , 10)
-
+		self.goals_changed.emit()
 	def getGoals_client(self):
 		try:
 			goal = rospy.ServiceProxy('/policy/policy_server/GetGoalList', GetGoalList)
@@ -267,7 +267,15 @@ class SimulationWindow(QWidget):
 			self._goalIcon = thisGoal
 			self.minimapScene.addItem(thisGoal)
 
-			
+
+
+		
+		self._goalID = self.allGoals[self.count][0]
+		print self._goalID
+		self.setCurrentGoal_client(self._goalID)		
+
+
+
 		#Update the label's text:
 		self._goalIcon.setText(str(self._goalID))
 		self.goal.setText('Current Goal: ' + self._goalID)
@@ -309,10 +317,12 @@ class SimulationWindow(QWidget):
 		
 
 		self.minimapView.fitInView(self.minimapScene.sceneRect())
+
 		#self.centerOn(self._dem_item)
 		#self.show()
-		bounds = self.minimapScene.sceneRect()
-		#print 'Bounds:', bounds
+		bounds = self.minimapView.sceneRect()
+		print 'Bounds:', bounds
+		#self.minimapView.setFixedSize(self.w, self.h)
 
 		#Overlay the hazmap now that the dem is loaded
 		self.hazmap_sub = rospy.Subscriber('hazmap', Image, self.hazmap_cb)
@@ -325,15 +335,10 @@ class SimulationWindow(QWidget):
 		self.allGoals = sorted(self.allGoals, key=lambda param: param[0]) #Sort the combined list by the goal ID
 		self.allGoalsDict = dict(self.allGoals)
 
-		if self._goalID == '':
-			self._goalID = self.allGoalsDict.keys()[self.count]
-		else:
-			self.count = self.count +1
-			self._goalID = self.allGoalsDict.keys()[self.count]
-		self.setCurrentGoal_client(self._goalID)		
 
 		self.buildTable()
 		self.beliefOpacitySlider.valueChanged.connect(self.sliderChanged); 
+
 
 	def _updateRobot(self):
 		#Redraw the robot locations
@@ -469,7 +474,7 @@ class SimulationWindow(QWidget):
 		print 'Got Goal at: ' + str(worldX) + ',' + str(worldY)
 
 		self._goal = [msg.id, worldX, worldY]
-		self.goals_changed.emit()
+		#self.goals_changed.emit()
 def main():
 		app = QApplication(sys.argv)
 		coretools_app = SimulationWindow()
