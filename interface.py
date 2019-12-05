@@ -125,6 +125,7 @@ class SimulationWindow(QWidget):
 		self.fuel = QLabel()
 		self.timer = QLabel()
 		self.goal = QLabel()
+		self.score = QLabel()
 		self.shotClock = QTimer()
 
 		self.shotClock.timeout.connect(self.updateTime)
@@ -133,10 +134,12 @@ class SimulationWindow(QWidget):
 		self.fuel.setText('Fuel Remaining: 100%')
 		self.goal.setText('Current Goal: ' + self._goalID)
 		self.timer.setText(str(self.time_remaining))
+		self.score.setText('Current Score: ')
 
 		self.stateLayout.addWidget(self.fuel,12,1,1,1); 
 		self.stateLayout.addWidget(self.goal,11,1);
 		self.stateLayout.addWidget(self.timer,11,2); 
+		self.stateLayout.addWidget(self.score,12,2); 
 		self.layout.addWidget(stateGroup,10,1,1,8)
 
 		#------------------------------------------
@@ -189,7 +192,7 @@ class SimulationWindow(QWidget):
 		pass
 
 	def buildTable(self):
-
+		self.goals_changed.emit()
 		for i in range(0,self.table.rowCount()):
 			self.item = QTableWidgetItem(self._goalID)
 			item_p = QTableWidgetItem( '%1.2f' % self.allGoals[i][1].x)
@@ -208,7 +211,7 @@ class SimulationWindow(QWidget):
 			self.table.setItem(i, 3, item_reward)
 			self.table.setItem(i, 4, item_fuel)
 
-		self.goals_changed.emit()
+
 	def getGoals_client(self):
 		try:
 			goal = rospy.ServiceProxy('/policy/policy_server/GetGoalList', GetGoalList)
@@ -359,7 +362,6 @@ class SimulationWindow(QWidget):
 			self.thisRobot.setRotation(self.steer*180/math.pi) #First step policy advice
 		except:
 			pass
-
 
 	def hazmap_cb(self, msg):
 		#Unlike the dem, the hazmap is pretty standard - gray8 image
