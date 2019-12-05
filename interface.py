@@ -62,8 +62,9 @@ class SimulationWindow(QWidget):
 		print 'Rows: ' + str(self.layout.rowCount())
 		self.setWindowState(Qt.WindowMaximized);
 		self.dem_sub = rospy.Subscriber('dem', Image, self.dem_cb)
-		self.odom_sub = rospy.Subscriber('state', RobotState, self.state_callback)
+		self.steer_sub = rospy.Subscriber('current_steer', Steering, self.state_callback)
 		self.goal_sub = rospy.Subscriber('current_goal', NamedGoal, self.goal_cb)
+		self.current_state_pub = rospy.Publisher('state', RobotState, queue_size=10)
 		# self.populated = False
 
 		self.a = 255*.3
@@ -72,6 +73,7 @@ class SimulationWindow(QWidget):
 		self._goalLocations = [(0,0)]
 
 		rospy.init_node('interface')
+		self.msg = RobotState()
 
 		rate = rospy.Rate(10) # 10hz
 		# self.sketchPub = rospy.Publisher('/Sketch', sketch, queue_size=10)
@@ -83,6 +85,7 @@ class SimulationWindow(QWidget):
 		self.hazmap_changed.connect(self._updateHazmap)
 		self.robot_odom_changed.connect(self._updateRobot)
 		self._dem_item = None
+		self._goal = None
 		self._goalIcon = None
 		self.gworld = [0,0]
 		self.hazmapItem = None
@@ -244,17 +247,15 @@ class SimulationWindow(QWidget):
 			print "Service call failed: %s"%e
 
 	def state_callback(self, data):			
-		self.lastStateMsg = data
-		self._robotFuel = data.fuel
-		self.worldX = data.pose.position.x
-		self.worldY = data.pose.position.y
-		worldRoll, worldPitch, self.worldYaw = euler_from_quaternion([data.pose.orientation.x,
-										  data.pose.orientation.y,
-										  data.pose.orientation.z,
-										  data.pose.orientation.w],'sxyz')
+		self.steer = data.steer
+		self.robot_odom_changed.emit()
+		#worldRoll, worldPitch, self.worldYaw = euler_from_quaternion([data.pose.orientation.x,
+		#								  data.pose.orientation.y,
+		#								  data.pose.orientation.z,
+		#								  data.pose.orientation.w],'sxyz')
 
 
-		self.location_update.emit(self.worldX, self.worldY, self.worldYaw, self._robotFuel)
+		#self.location_update.emit(self.worldX, self.worldY, self.worldYaw, self._robotFuel)
 
 	def _updateGoal(self):
 		#Redraw the goal locations
@@ -350,6 +351,9 @@ class SimulationWindow(QWidget):
 		#if self._robotIcon == None:
 		#	thisRobot = QArrow.QArrow(color=QColor(self._colors[0][0], self._colors[0][1], self._colors[0][2]))
 		#	self._robotIcon = thisRobot
+		self.msg.pose.position.x = location.x
+		self.msg.pose.position.y = location.y
+		self.current_state_pub.publish(self.msg)
 			
 		world = list(copy.deepcopy([location.x,location.y]))
 
@@ -367,8 +371,11 @@ class SimulationWindow(QWidget):
 
 		self.thisRobot.setTransformOriginPoint(QPoint(iconBounds.width()/2, iconBounds.height()/2))
 		self.thisRobot.setPos(QPointF(world[0], world[1]))
-		self.thisRobot.setRotation(math.atan(dy/dx)*180/math.pi -90)
-
+		#self.thisRobot.setRotation(math.atan(dy/dx)*180/math.pi -90) #Pointing directly at goal
+		try:
+			self.thisRobot.setRotation(self.steer*180/math.pi) #First step policy advice
+		except:
+			pass
 
 	def hazmap_cb(self, msg):
 		#Unlike the dem, the hazmap is pretty standard - gray8 image
