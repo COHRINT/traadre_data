@@ -22,14 +22,6 @@ import copy
 
 from cv_bridge import CvBridge, CvBridgeError
 
-def makeTransparentPlane(wind):
-	
-	scale = QPixmap('images/DEM.png')
-	testMap = QPixmap(scale.size().width()/10,scale.size().height()/10); 
-	testMap.fill(QtCore.Qt.transparent); 
-	return testMap; 
-
-
 class SimulationWindow(QWidget):
 	sketch = pyqtSignal()
 	defogSignal = pyqtSignal(int, int, int, int, list, int)
@@ -74,7 +66,6 @@ class SimulationWindow(QWidget):
 
 		rospy.init_node('interface')
 		self.msg = RobotState()
-
 		rate = rospy.Rate(10) # 10hz
 		# self.sketchPub = rospy.Publisher('/Sketch', sketch, queue_size=10)
 
@@ -85,7 +76,6 @@ class SimulationWindow(QWidget):
 		self.hazmap_changed.connect(self._updateHazmap)
 		self.robot_odom_changed.connect(self._updateRobot)
 		self._dem_item = None
-		self._goal = None
 		self._goalIcon = None
 		self.gworld = [0,0]
 		self.hazmapItem = None
@@ -99,9 +89,6 @@ class SimulationWindow(QWidget):
 		self.minimapScene = QGraphicsScene(self);
 		self.image =  QPixmap('images/DEM.png')
 
-		#self.minimapScene.addPixmap(self.image); 
-		#make sketchPlane --------------------
-		#self.sketchPlane = self.minimapScene.addPixmap(makeTransparentPlane(self)); 
 
 		self.minimapView.setScene(self.minimapScene);
 		#self.minimapView.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -147,9 +134,9 @@ class SimulationWindow(QWidget):
 		self.goal.setText('Current Goal: ' + self._goalID)
 		self.timer.setText(str(self.time_remaining))
 
-		self.stateLayout.addWidget(self.fuel,11,1,1,1); 
-		self.stateLayout.addWidget(self.goal,12,4,1,1);
-		self.stateLayout.addWidget(self.timer,11,4,1,1); 
+		self.stateLayout.addWidget(self.fuel,12,1,1,1); 
+		self.stateLayout.addWidget(self.goal,11,1);
+		self.stateLayout.addWidget(self.timer,11,2); 
 		self.layout.addWidget(stateGroup,10,1,1,8)
 
 		#------------------------------------------
@@ -252,6 +239,7 @@ class SimulationWindow(QWidget):
 
 		#self.location_update.emit(self.worldX, self.worldY, self.worldYaw, self._robotFuel)
 
+
 	def _updateGoal(self):
 		#Redraw the goal locations
 		#print 'Updating goal locations'
@@ -350,7 +338,6 @@ class SimulationWindow(QWidget):
 		self.msg.pose.position.x = location.x
 		self.msg.pose.position.y = location.y
 		self.current_state_pub.publish(self.msg)
-			
 		world = list(copy.deepcopy([location.x,location.y]))
 
 		iconBounds = self.thisRobot.boundingRect()
@@ -372,6 +359,7 @@ class SimulationWindow(QWidget):
 			self.thisRobot.setRotation(self.steer*180/math.pi) #First step policy advice
 		except:
 			pass
+
 
 	def hazmap_cb(self, msg):
 		#Unlike the dem, the hazmap is pretty standard - gray8 image

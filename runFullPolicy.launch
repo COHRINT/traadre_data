@@ -26,6 +26,7 @@
 		  <remap from="state" to="/state"/>
 		  <remap from="current_goal" to="/policy/current_goal"/>
 		  <remap from="hazmap" to="/policy/hazmap"/>
+		  <remap from="current_steer" to="/policy/current_steer"/>
 	    </node>
 	    <node pkg="joy" type="joy_node" name="joy_ground" output="screen">
 	    	  <param name="dev" value="$(arg joy_dev)"/>
