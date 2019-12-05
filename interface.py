@@ -123,17 +123,6 @@ class SimulationWindow(QWidget):
 
 		self.layout.addLayout(sliderLayout,9,1,1,8) 
 
-		#---------------------------------------------
-		self.time = QLineEdit(); 
-
-		timer = QTime()
-		timer.start()
-		self.time.setText(str(timer.elapsed()))
-		self.time.setStyleSheet("background-color: white; border: 4px inset grey;")
-
-
-		#self.layout.addWidget(self.time,5,20,1,3) 
-
 		#----------------------------------------------
 		self.stateLayout = QGridLayout();
 
@@ -141,21 +130,23 @@ class SimulationWindow(QWidget):
 		stateGroup.setLayout(self.stateLayout)
 
 		stateGroup.setStyleSheet("background-color: white; border: 4px inset grey;")
+		self.time_remaining = 120
 
 		self.fuel = QLabel()
-		self.xP = QLabel()
-		self.xQ = QLabel()
+		self.timer = QLabel()
 		self.goal = QLabel()
+		self.shotClock = QTimer()
+
+		self.shotClock.timeout.connect(self.updateTime)
+
 
 		self.fuel.setText('Fuel Remaining: 100%')
-		self.xP.setText('Outcome Assessment: 0.1')
-		self.xQ.setText('Solver Quality: 0.8')
 		self.goal.setText('Current Goal: ' + self._goalID)
+		self.timer.setText(str(self.time_remaining))
 
 		self.stateLayout.addWidget(self.fuel,11,1,1,1); 
-		self.stateLayout.addWidget(self.xQ,12,1,1,1);
 		self.stateLayout.addWidget(self.goal,12,4,1,1);
-		self.stateLayout.addWidget(self.xP,11,4,1,1); 
+		self.stateLayout.addWidget(self.timer,11,4,1,1); 
 		self.layout.addWidget(stateGroup,10,1,1,8)
 
 		#------------------------------------------
@@ -173,9 +164,9 @@ class SimulationWindow(QWidget):
 
 		self.go_btn.clicked.connect(self.operator_toast)
 
-		self.table = QTableWidget(9,5,self)
+		self.table = QTableWidget(5,5,self)
 
-		self.table.setHorizontalHeaderLabels(('Goal ID', 'Pos X', 'Pos Y','Reward','Fuel Cost'))
+		self.table.setHorizontalHeaderLabels(('ID', 'xP', 'xQ','Reward','Fuel Cost'))
 		self.table.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 		#self.table.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 		self.table.setStyleSheet("background-color: grey")
@@ -190,6 +181,9 @@ class SimulationWindow(QWidget):
 		self.a = 255*self.beliefOpacitySlider.sliderPosition()/100
 		self.hazmap_changed.emit(self.a)
 
+	def updateTime(self):
+		self.time_remaining = self.time_remaining - 1
+		self.timer.setText(str(self.time_remaining))
 
 	def operator_toast(self):
 		toast = QInputDialog()
@@ -198,6 +192,7 @@ class SimulationWindow(QWidget):
 		if okPressed:
 			self.count = self.count +1
 			self.goals_changed.emit()
+			self.buildTable()
 
 	def make_connections(self): 
 		#Handler for final sketches
@@ -206,21 +201,21 @@ class SimulationWindow(QWidget):
 	def buildTable(self):
 
 		for i in range(0,self.table.rowCount()):
-			self.item = QTableWidgetItem(self.allGoals[i][0])
-			itemx = QTableWidgetItem( '%1.2f' % self.allGoals[i][1].x)
-			itemy = QTableWidgetItem( '%1.2f' % self.allGoals[i][1].y)
-			item_theta = QTableWidgetItem( '%1.2f' % self.allGoals[i][1].theta)
-			item_fuel = QTableWidgetItem(str(100))
+			self.item = QTableWidgetItem(self._goalID)
+			item_p = QTableWidgetItem( '%1.2f' % self.allGoals[i][1].x)
+			item_q = QTableWidgetItem( '%1.2f' % self.allGoals[i][1].y)
+			item_reward = QTableWidgetItem(str(50))
+			item_fuel = QTableWidgetItem(str(100 - 10*i))
 			self.item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
-			itemx.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
-			itemy.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
-			item_theta.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+			item_p.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+			item_q.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+			item_reward.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
 			item_fuel.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
 
 			self.table.setItem(i, 0, self.item)
-			self.table.setItem(i, 1, itemx)
-			self.table.setItem(i, 2, itemy)
-			self.table.setItem(i, 3, item_theta)
+			self.table.setItem(i, 1, item_p)
+			self.table.setItem(i, 2, item_q)
+			self.table.setItem(i, 3, item_reward)
 			self.table.setItem(i, 4, item_fuel)
 
 		self.goals_changed.emit()
@@ -267,37 +262,37 @@ class SimulationWindow(QWidget):
 			self._goalIcon = thisGoal
 			self.minimapScene.addItem(thisGoal)
 
-
-
 		
 		self._goalID = self.allGoals[self.count][0]
 		print self._goalID
 		self.setCurrentGoal_client(self._goalID)		
 
+		try:
+			#Update the label's text:
+			self._goalIcon.setText(str(self._goalID))
+			self.goal.setText('Current Goal: ' + self._goalID)
+			#Pick up the world coordinates
+			self._goalLocations = [self._goal[1], self._goal[2]]
 
+			world = list(copy.deepcopy(self._goalLocations))
 
-		#Update the label's text:
-		self._goalIcon.setText(str(self._goalID))
-		self.goal.setText('Current Goal: ' + self._goalID)
-		#Pick up the world coordinates
-		self._goalLocations = [self._goal[1], self._goal[2]]
+			iconBounds = self._goalIcon.boundingRect()
 
-		world = list(copy.deepcopy(self._goalLocations))
+			world[0] = world[0]/self.demDownsample
+			world[1] = world[1]/self.demDownsample
+			
+			#Adjust the world coords so that the icon is centered on the goal
+			self.gworld[0] = world[0] - iconBounds.width()/2 
+			self.gworld[1] = world[1] - iconBounds.height()/2 #mirror the y coord
 
-		iconBounds = self._goalIcon.boundingRect()
+			#        world[1] = self.h - (world[1] + iconBounds.height()/2) #mirror the y coord
+			#        print 'Ymax:', self.h
+			print 'Drawing goal ', self._goalID, ' at ', world
+			self._goalIcon.setPos(QPointF(self.gworld[0], self.gworld[1]))
+			self.robot_odom_changed.emit()
 
-		world[0] = world[0]/self.demDownsample
-		world[1] = world[1]/self.demDownsample
-		
-		#Adjust the world coords so that the icon is centered on the goal
-		self.gworld[0] = world[0] - iconBounds.width()/2 
-		self.gworld[1] = world[1] - iconBounds.height()/2 #mirror the y coord
-
-		#        world[1] = self.h - (world[1] + iconBounds.height()/2) #mirror the y coord
-		#        print 'Ymax:', self.h
-		print 'Drawing goal ', self._goalID, ' at ', world
-		self._goalIcon.setPos(QPointF(self.gworld[0], self.gworld[1]))
-		self.robot_odom_changed.emit()
+		except:
+			pass
 
 
 
@@ -337,7 +332,8 @@ class SimulationWindow(QWidget):
 
 
 		self.buildTable()
-		self.beliefOpacitySlider.valueChanged.connect(self.sliderChanged); 
+		self.beliefOpacitySlider.valueChanged.connect(self.sliderChanged);
+		self.shotClock.start(1000) 
 
 
 	def _updateRobot(self):
