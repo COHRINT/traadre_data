@@ -79,6 +79,7 @@ class SimulationWindow(QWidget):
 		self._goalIcon = None
 		self.gworld = [0,0]
 		self.hazmapItem = None
+		self.current_score = 0
 		self._goalID = 'Start'
 		self._robotIcon = None
 		self.demDownsample = 4
@@ -133,8 +134,8 @@ class SimulationWindow(QWidget):
 
 		self.fuel.setText('Fuel Remaining: 100%')
 		self.goal.setText('Current Goal: ' + self._goalID)
-		self.timer.setText(str(self.time_remaining))
-		self.score.setText('Current Score: ')
+		self.timer.setText('Time Remaining: ' + str(self.time_remaining) + ' seconds')
+		self.score.setText('Current Score: ' + str(self.current_score))
 
 		self.stateLayout.addWidget(self.fuel,12,1,1,1); 
 		self.stateLayout.addWidget(self.goal,11,1);
@@ -151,15 +152,15 @@ class SimulationWindow(QWidget):
 		goGroup.setStyleSheet("QGroupBox {background-color: white; border: 4px inset grey;}")
 
 		self.go_btn = QPushButton('Go',self)
-
+		self.go_btn.setEnabled(False)
 		self.pushLayout.addWidget(self.go_btn,6,19,1,1); 
-		self.go_btn.setStyleSheet("background-color: green; color: white")
+		self.go_btn.setStyleSheet("background-color: grey; color: white")
 
 		self.go_btn.clicked.connect(self.operator_toast)
 
 		self.table = QTableWidget(5,5,self)
 
-		self.table.setHorizontalHeaderLabels(('ID', 'xP', 'xQ','Reward','Fuel Cost'))
+		self.table.setHorizontalHeaderLabels(('Toggle', 'xP', 'xQ','Reward','Fuel Cost'))
 		self.table.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 		#self.table.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 		self.table.setStyleSheet("background-color: grey")
@@ -175,37 +176,78 @@ class SimulationWindow(QWidget):
 		self.hazmap_changed.emit(self.a)
 
 	def updateTime(self):
-		self.time_remaining = self.time_remaining - 1
-		self.timer.setText(str(self.time_remaining))
+		if self.time_remaining != 0:
+			self.time_remaining = self.time_remaining - 1
+			self.timer.setText('Time Remaining: ' + str(self.time_remaining) + ' seconds')
 
 	def operator_toast(self):
 		toast = QInputDialog()
 		self.val, okPressed = toast.getInt(self, "Confidence","Rate Your Confidence:", 1, 0, 5, 1)
 
 		if okPressed:
+			self.time_remaining = 120
+			self.timer.setText('Time Remaining: ' + str(self.time_remaining) + ' seconds')
 			self.count = self.count +1
 			self.goals_changed.emit()
 			self.buildTable()
 
+
 	def make_connections(self): 
-		#Handler for final sketches
+		'''self.minimapView.mousePressEvent = lambda event:imageMousePress(event,self); 
+		self.minimapView.mouseMoveEvent = lambda event:imageMouseMove(event,self); 
+		self.minimapView.mouseReleaseEvent = lambda event:imageMouseRelease(event,self);
+
+		self.goGroup.mousePressEvent = lambda event:imageMousePress(event,self); 
+		self.goGroup.mouseMoveEvent = lambda event:imageMouseMove(event,self); 
+		self.goGroup.mouseReleaseEvent = lambda event:imageMouseRelease(event,self);
+
+		self.table.mousePressEvent = lambda event:imageMousePress(event,self); 
+		self.table.mouseMoveEvent = lambda event:imageMouseMove(event,self); 
+		self.table.mouseReleaseEvent = lambda event:imageMouseRelease(event,self);'''
 		pass
+		
+	def checkbox_callback(self):
+		count = 0
+		for i in range(0, len(self.cb_list)):
+			count = count + self.cb_list[i].checkState()
+			
+		if count == 2:
+			self.go_btn.setEnabled(True)
+			self.go_btn.setStyleSheet("background-color: green; color: white")
+		else: 
+			self.go_btn.setEnabled(False)
+			self.go_btn.setStyleSheet("background-color: grey; color: white")
 
 	def buildTable(self):
 		self.goals_changed.emit()
+
+		cb1  = QtWidgets.QCheckBox( parent=self.table )
+		cb2  = QtWidgets.QCheckBox( parent=self.table )
+		cb3  = QtWidgets.QCheckBox( parent=self.table )
+		cb4  = QtWidgets.QCheckBox( parent=self.table )
+		cb5  = QtWidgets.QCheckBox( parent=self.table )
+
+		self.cb_list = [cb1, cb2, cb3, cb4, cb5]
 		for i in range(0,self.table.rowCount()):
-			self.item = QTableWidgetItem(self._goalID)
+			self.cb_list[i]  = QtWidgets.QCheckBox( parent=self.table )
+			self.cb_list[i].setTristate(False)
+			self.cb_list[i].setChecked(1)
+			self.cb_list[i].stateChanged.connect(self.checkbox_callback)
+
+			#self.item = QTableWidgetItem(self._goalID)
 			item_p = QTableWidgetItem( '%1.2f' % self.allGoals[i][1].x)
 			item_q = QTableWidgetItem( '%1.2f' % self.allGoals[i][1].y)
+			self.table.setToolTip('I am a tool tip')
 			item_reward = QTableWidgetItem(str(50))
 			item_fuel = QTableWidgetItem(str(100 - 10*i))
-			self.item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+			#self.item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
 			item_p.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
 			item_q.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
 			item_reward.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
 			item_fuel.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
 
-			self.table.setItem(i, 0, self.item)
+			#self.table.setItem(i, 0, self.item)
+			self.table.setCellWidget(i,0, self.cb_list[i])
 			self.table.setItem(i, 1, item_p)
 			self.table.setItem(i, 2, item_q)
 			self.table.setItem(i, 3, item_reward)
@@ -331,7 +373,6 @@ class SimulationWindow(QWidget):
 	def _updateRobot(self):
 		#Redraw the robot locations
 		location = self.allGoalsDict[self.allGoals[self.count-1][0]]
-		print self.allGoals[self.count][1].x
 
 		#print 'Updating robot locations'
 		#If this is the first time we've seen this robot, create its icon
@@ -340,7 +381,7 @@ class SimulationWindow(QWidget):
 		#	self._robotIcon = thisRobot
 		self.msg.pose.position.x = location.x
 		self.msg.pose.position.y = location.y
-		self.current_state_pub.publish(self.msg)
+		#self.current_state_pub.publish(self.msg)
 		world = list(copy.deepcopy([location.x,location.y]))
 
 		iconBounds = self.thisRobot.boundingRect()
