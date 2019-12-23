@@ -16,11 +16,17 @@ from traadre_msgs.srv import *
 from geometry_msgs.msg import *
 from sensor_msgs.msg import *
 
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
 import numpy as np
+
 import cv2
 import copy
-
+import matplotlib.pyplot as plt
 from cv_bridge import CvBridge, CvBridgeError
+
+from mplwidget import MplWidget
 
 class SimulationWindow(QWidget):
 	sketch = pyqtSignal()
@@ -171,6 +177,37 @@ class SimulationWindow(QWidget):
 		self.pushLayout.addWidget(self.table,6,16,1,1); 
 		self.layout.addWidget(goGroup,9,16,2,10)
 
+
+		#-----------------------------------------------------
+		self.histLayout = QGridLayout();
+		np.random.seed(19680801)
+
+		# example data
+		mu = 100  # mean of distribution
+		sigma = 15  # standard deviation of distribution
+		x = mu + sigma * np.random.randn(437)
+	
+		histGroup = QGroupBox()
+		histGroup.setLayout(self.histLayout)
+
+		histGroup.setStyleSheet("QGroupBox {background-color: white; border: 4px inset grey;}")
+
+
+		self.hist = MplWidget()
+		self.hist.setStyleSheet("MplWidget {background-color: white; border: 4px inset grey;}")
+		self.hist.canvas.ax.hist(x, 50)
+		self.hist.canvas.ax.set_xlabel('Smarts')
+		self.hist.canvas.ax.set_ylabel('Probability density')
+		self.hist.canvas.ax.set_title(r'Histogram of IQ: $\mu=100$, $\sigma=15$')
+		self.hist.canvas.draw()
+
+		self.histLayout.addWidget(self.hist)
+		self.layout.addWidget(histGroup, 1,17,2,8)
+
+
+		#cid = self.hist.canvas.mpl_connect('button_press_event', self)
+
+
 	def sliderChanged(self):
 		self.a = 255*self.beliefOpacitySlider.sliderPosition()/100
 		self.hazmap_changed.emit(self.a)
@@ -189,6 +226,8 @@ class SimulationWindow(QWidget):
 			self.timer.setText('Time Remaining: ' + str(self.time_remaining) + ' seconds')
 			self.count = self.count +1
 			self.goals_changed.emit()
+			self.go_btn.setEnabled(False)
+			self.go_btn.setStyleSheet("background-color: grey; color: white")
 			self.buildTable()
 
 
@@ -398,11 +437,11 @@ class SimulationWindow(QWidget):
 
 		self.thisRobot.setTransformOriginPoint(QPoint(iconBounds.width()/2, iconBounds.height()/2))
 		self.thisRobot.setPos(QPointF(world[0], world[1]))
-		#self.thisRobot.setRotation(math.atan(dy/dx)*180/math.pi -90) #Pointing directly at goal
-		try:
-			self.thisRobot.setRotation(self.steer*180/math.pi) #First step policy advice
-		except:
-			pass
+		self.thisRobot.setRotation(math.atan(dy/dx)*180/math.pi -90) #Pointing directly at goal
+		#try:
+		#	self.thisRobot.setRotation(self.steer*180/math.pi) #First step policy advice
+		#except:
+		#	pass
 
 	def hazmap_cb(self, msg):
 		#Unlike the dem, the hazmap is pretty standard - gray8 image
