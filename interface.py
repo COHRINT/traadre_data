@@ -27,6 +27,7 @@ import matplotlib.pyplot as plt
 from cv_bridge import CvBridge, CvBridgeError
 
 from mplwidget import MplWidget
+from surveywidget import SurveyWidget
 
 class SimulationWindow(QWidget):
 	sketch = pyqtSignal()
@@ -195,10 +196,29 @@ class SimulationWindow(QWidget):
 
 		self.hist = MplWidget()
 		self.hist.setStyleSheet("MplWidget {background-color: white; border: 4px inset grey;}")
+		'''eights, edges = np.histogram(x,50)
+		edges = edges[:-1]+(edges[1]-edges[0])
+
+		# get input from 2 clicks on figure
+		point1, point2 = fig.ginput(2)
+
+		# paint selected area in red
+		ax.axvspan(point1[0], point2[0], color='red', alpha=0.5)
+
+		# calculate which values are selected and display mean and std
+		mask = (edges>point1[0]) & (edges<point2[0])
+		fig.text(0.2,0.83,'Mean: ' + str(np.mean(heights[mask])))
+		fig.text(0.2,0.8,'Std: ' + str(np.std(heights[mask])))'''
+
+		#x,y = self.hist.fig.ginput(2)
+
 		self.hist.canvas.ax.hist(x, 50)
-		self.hist.canvas.ax.set_xlabel('Smarts')
+		self.hist.canvas.ax.set_xlabel('Reward')
 		self.hist.canvas.ax.set_ylabel('Probability density')
 		self.hist.canvas.ax.set_title(r'Histogram of IQ: $\mu=100$, $\sigma=15$')
+
+		self.hist.canvas.ax.axvline(x=100.22058956, linestyle = '--', color = 'red')
+
 		self.hist.canvas.draw()
 
 		self.histLayout.addWidget(self.hist)
@@ -218,6 +238,11 @@ class SimulationWindow(QWidget):
 			self.timer.setText('Time Remaining: ' + str(self.time_remaining) + ' seconds')
 
 	def operator_toast(self):
+		'''print "Opening a new popup window..."
+		self.w = SurveyWidget()
+		self.w.setGeometry(QRect(100, 100, 400, 200))
+		self.w.show()'''
+
 		toast = QInputDialog()
 		self.val, okPressed = toast.getInt(self, "Confidence","Rate Your Confidence:", 1, 0, 5, 1)
 
