@@ -29,6 +29,17 @@ from cv_bridge import CvBridge, CvBridgeError
 from mplwidget import MplWidget
 from surveywidget import SurveyWidget
 
+def outcomeAssessment(samples, R_inf):
+	L_samples=np.unique(np.where(samples<R_inf))
+	U_samples=np.unique(np.where(samples>R_inf))
+	samples=list(samples)
+	LPM=sum([float(samples[x]*samples.count(samples[x]))/float(len(samples)) for x in L_samples])
+	UPM=sum([float(samples[x]*samples.count(samples[x]))/float(len(samples)) for x in U_samples])
+	print L_samples
+	xO=(float(2)/(1+np.exp(-np.log(float(UPM)/float(LPM)))))-1
+
+	return xO
+
 class SimulationWindow(QWidget):
 	sketch = pyqtSignal()
 	defogSignal = pyqtSignal(int, int, int, int, list, int)
@@ -196,23 +207,8 @@ class SimulationWindow(QWidget):
 
 		self.hist = MplWidget()
 		self.hist.setStyleSheet("MplWidget {background-color: white; border: 4px inset grey;}")
-		'''eights, edges = np.histogram(x,50)
-		edges = edges[:-1]+(edges[1]-edges[0])
 
-		# get input from 2 clicks on figure
-		point1, point2 = fig.ginput(2)
 
-		# paint selected area in red
-		ax.axvspan(point1[0], point2[0], color='red', alpha=0.5)
-
-		# calculate which values are selected and display mean and std
-		mask = (edges>point1[0]) & (edges<point2[0])
-		fig.text(0.2,0.83,'Mean: ' + str(np.mean(heights[mask])))
-		fig.text(0.2,0.8,'Std: ' + str(np.std(heights[mask])))'''
-
-		#x,y = self.hist.fig.ginput(2)
-
-		self.hist.canvas.ax.hist(x, 50)
 		self.hist.canvas.ax.set_xlabel('Reward')
 		self.hist.canvas.ax.set_ylabel('Probability density')
 		self.hist.canvas.ax.set_title(r'Histogram of IQ: $\mu=100$, $\sigma=15$')
@@ -328,6 +324,16 @@ class SimulationWindow(QWidget):
 		except rospy.ServiceException, e:
 			print "Service call failed: %s"%e
 
+	def getRewards_client(self, id):
+		try:
+			goal = rospy.ServiceProxy('/policy/policy_server/GetMCSims', GetMCSims)
+			response = goal(id)
+
+			return response.rewards
+		except rospy.ServiceException, e:
+			print "Service call failed: %s"%e
+
+
 	def setCurrentGoal_client(self,id):
 		try:
 			goal = rospy.ServiceProxy('/policy/policy_server/SetCurrentGoal', SetCurrentGoal)
@@ -362,8 +368,14 @@ class SimulationWindow(QWidget):
 
 		
 		self._goalID = self.allGoals[self.count][0]
-		print self._goalID
-		self.setCurrentGoal_client(self._goalID)		
+		self.setCurrentGoal_client(self._goalID)	
+		self.rewards = self.getRewards_client(self._goalID)	
+		self.hist.canvas.ax.hist(self.rewards, 50)
+		self.hist.canvas.draw()
+
+		print np.array(self.rewards)
+		self.x0 = outcomeAssessment(np.array(self.rewards), 1600.0)
+		print self.x0
 
 		try:
 			#Update the label's text:
@@ -573,6 +585,12 @@ class SimulationWindow(QWidget):
 
 		self._goal = [msg.id, worldX, worldY]
 		#self.goals_changed.emit()
+
+
+
+
+
+
 def main():
 		app = QApplication(sys.argv)
 		coretools_app = SimulationWindow()
