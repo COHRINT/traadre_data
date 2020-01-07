@@ -192,13 +192,7 @@ class SimulationWindow(QWidget):
 
 		#-----------------------------------------------------
 		self.histLayout = QGridLayout();
-		np.random.seed(19680801)
 
-		# example data
-		mu = 100  # mean of distribution
-		sigma = 15  # standard deviation of distribution
-		x = mu + sigma * np.random.randn(437)
-	
 		histGroup = QGroupBox()
 		histGroup.setLayout(self.histLayout)
 
@@ -371,6 +365,11 @@ class SimulationWindow(QWidget):
 		self.setCurrentGoal_client(self._goalID)	
 		self.rewards = self.getRewards_client(self._goalID)	
 		self.hist.canvas.ax.hist(self.rewards, 50)
+
+		mu = "%.1f" % np.mean(self.rewards)
+		std = "%.2f" % np.std(self.rewards)
+
+		self.hist.canvas.ax.set_title(r'Histogram of Potential Rewards: $\mu=$ ' + (mu) + r', $\sigma=$' + (std))
 		self.hist.canvas.draw()
 
 		print np.array(self.rewards)
