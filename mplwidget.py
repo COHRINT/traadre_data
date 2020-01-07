@@ -13,9 +13,9 @@ import matplotlib.pyplot as plt
 class MplCanvas(Canvas):
 	def __init__(self):
 		def onclick(event):
-			print('%s click: button=%d, x=%d, y=%d, xdata=%f, ydata=%f' %
+			'''print('%s click: button=%d, x=%d, y=%d, xdata=%f, ydata=%f' %
 				('double' if event.dblclick else 'single', event.button,
-				 event.x, event.y, event.xdata, event.ydata))
+				 event.x, event.y, event.xdata, event.ydata))'''
 			try:
 				self.span.remove()
 			except:
