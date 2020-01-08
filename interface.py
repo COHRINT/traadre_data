@@ -35,7 +35,6 @@ def outcomeAssessment(samples, R_inf):
 	samples=list(samples)
 	LPM=sum([float(samples[x]*samples.count(samples[x]))/float(len(samples)) for x in L_samples])
 	UPM=sum([float(samples[x]*samples.count(samples[x]))/float(len(samples)) for x in U_samples])
-	print L_samples
 	xO=(float(2)/(1+np.exp(-np.log(float(UPM)/float(LPM)))))-1
 
 	return xO
@@ -49,6 +48,7 @@ class SimulationWindow(QWidget):
 	goals_changed = pyqtSignal()
 	hazmap_changed = pyqtSignal(int)
 	rightClick = pyqtSignal(int,int)
+	option_changed = pyqtSignal(int)
 	state = pyqtSignal(int,int)
 
 	def __init__(self):
@@ -74,7 +74,9 @@ class SimulationWindow(QWidget):
 		self.dem_sub = rospy.Subscriber('dem', Image, self.dem_cb)
 		self.steer_sub = rospy.Subscriber('current_steer', Steering, self.state_callback)
 		self.goal_sub = rospy.Subscriber('current_goal', NamedGoal, self.goal_cb)
+		self.option_sub = rospy.Subscriber('option', OptionSelect, self.option_cb)
 		self.current_state_pub = rospy.Publisher('state', RobotState, queue_size=10)
+
 		# self.populated = False
 
 		self.a = 255*.3
@@ -93,6 +95,7 @@ class SimulationWindow(QWidget):
 		self.dem_changed.connect(self._update)
 		self.hazmap_changed.connect(self._updateHazmap)
 		self.robot_odom_changed.connect(self._updateRobot)
+		self.option_changed.connect(self._updateOption)
 		self._dem_item = None
 		self._goalIcon = None
 		self.gworld = [0,0]
@@ -115,7 +118,7 @@ class SimulationWindow(QWidget):
 		self.layout.addWidget(self.minimapView,1,1,2,8);
 
 
-		#Add arrow
+		#Add arrow ---------------------------------------------
 		self.thisRobot = QArrow.QArrow(color=QColor(0,150,0,200))
 		self.minimapScene.addItem(self.thisRobot);
 		self.thisRobot.setZValue(2)
@@ -199,19 +202,6 @@ class SimulationWindow(QWidget):
 		histGroup.setStyleSheet("QGroupBox {background-color: white; border: 4px inset grey;}")
 
 
-		self.hist = MplWidget()
-		self.hist.setStyleSheet("MplWidget {background-color: white; border: 4px inset grey;}")
-
-
-		self.hist.canvas.ax.set_xlabel('Reward')
-		self.hist.canvas.ax.set_ylabel('Probability density')
-		self.hist.canvas.ax.set_title(r'Histogram of IQ: $\mu=100$, $\sigma=15$')
-
-		self.hist.canvas.ax.axvline(x=100.22058956, linestyle = '--', color = 'red')
-
-		self.hist.canvas.draw()
-
-		self.histLayout.addWidget(self.hist)
 		self.layout.addWidget(histGroup, 1,17,2,8)
 
 
@@ -226,6 +216,12 @@ class SimulationWindow(QWidget):
 		if self.time_remaining != 0:
 			self.time_remaining = self.time_remaining - 1
 			self.timer.setText('Time Remaining: ' + str(self.time_remaining) + ' seconds')
+
+	def option_cb(self, data):
+		self.option_changed.emit(data.option)
+
+	def _updateOption(self, option):
+		self.table.selectRow(option)
 
 	def operator_toast(self):
 		'''print "Opening a new popup window..."
@@ -288,21 +284,17 @@ class SimulationWindow(QWidget):
 			self.cb_list[i].setChecked(1)
 			self.cb_list[i].stateChanged.connect(self.checkbox_callback)
 
-			#self.item = QTableWidgetItem(self._goalID)
-			item_p = QTableWidgetItem( '%1.2f' % self.allGoals[i][1].x)
+			self.item_p = QTableWidgetItem(str(0))
 			item_q = QTableWidgetItem( '%1.2f' % self.allGoals[i][1].y)
 			self.table.setToolTip('I am a tool tip')
 			item_reward = QTableWidgetItem(str(50))
-			item_fuel = QTableWidgetItem(str(100 - 10*i))
-			#self.item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
-			item_p.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+			item_fuel = QTableWidgetItem(str(100 + 10*i))
+			
 			item_q.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
 			item_reward.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
 			item_fuel.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
 
-			#self.table.setItem(i, 0, self.item)
 			self.table.setCellWidget(i,0, self.cb_list[i])
-			self.table.setItem(i, 1, item_p)
 			self.table.setItem(i, 2, item_q)
 			self.table.setItem(i, 3, item_reward)
 			self.table.setItem(i, 4, item_fuel)
@@ -348,6 +340,36 @@ class SimulationWindow(QWidget):
 
 		#self.location_update.emit(self.worldX, self.worldY, self.worldYaw, self._robotFuel)
 
+	def makeHist(self):
+		if self.count == 0:
+			self.hist = MplWidget()
+			self.hist.setStyleSheet("MplWidget {background-color: white; border: 4px inset grey;}")
+
+
+			self.hist.canvas.draw()
+
+			self.histLayout.addWidget(self.hist)
+		#Histogram stuff
+		self.hist.canvas.ax.clear()
+
+		self.hist.canvas.ax.set_xlabel('Reward')
+		self.hist.canvas.ax.set_ylabel('Probability density')
+		self.hist.canvas.ax.set_title(r'Histogram of IQ: $\mu=100$, $\sigma=15$')
+
+		self.rewards = self.getRewards_client(self._goalID)	
+		self.hist.canvas.ax.hist(self.rewards, 50)
+
+		mu = "%.1f" % np.mean(self.rewards)
+		std = "%.2f" % np.std(self.rewards)
+		self.max_reward = max(self.rewards)
+		self.hist.canvas.ax.axvline(x=self.max_reward*0.16, linestyle = '--', color = 'red')
+		self.hist.canvas.ax.axvline(x=self.max_reward*0.32, linestyle = '--', color = 'red')
+		self.hist.canvas.ax.axvline(x=self.max_reward*0.48, linestyle = '--', color = 'red')
+		self.hist.canvas.ax.axvline(x=self.max_reward*0.64, linestyle = '--', color = 'red')
+		self.hist.canvas.ax.axvline(x=self.max_reward*0.80, linestyle = '--', color = 'red')
+
+		self.hist.canvas.ax.set_title(r'Histogram of Potential Rewards: $\mu=$ ' + (mu) + r', $\sigma=$' + (std))
+		self.hist.canvas.draw()
 
 	def _updateGoal(self):
 		#Redraw the goal locations
@@ -360,21 +382,26 @@ class SimulationWindow(QWidget):
 			self._goalIcon = thisGoal
 			self.minimapScene.addItem(thisGoal)
 
-		
+		self.allGoals = zip(self.goal_titles, self.row) #Zip the tuples together so I get a list of tuples (instead of a tuple of lists)
+		self.allGoals = sorted(self.allGoals, key=lambda param: param[0]) #Sort the combined list by the goal ID
+		self.allGoalsDict = dict(self.allGoals)
+
+
 		self._goalID = self.allGoals[self.count][0]
 		self.setCurrentGoal_client(self._goalID)	
-		self.rewards = self.getRewards_client(self._goalID)	
-		self.hist.canvas.ax.hist(self.rewards, 50)
 
-		mu = "%.1f" % np.mean(self.rewards)
-		std = "%.2f" % np.std(self.rewards)
+		self.msg.pose.position.x = self.allGoalsDict[self.allGoals[self.count-1][0]].x
+		self.msg.pose.position.y = self.allGoalsDict[self.allGoals[self.count-1][0]].y
+		self.current_state_pub.publish(self.msg)
 
-		self.hist.canvas.ax.set_title(r'Histogram of Potential Rewards: $\mu=$ ' + (mu) + r', $\sigma=$' + (std))
-		self.hist.canvas.draw()
 
-		print np.array(self.rewards)
-		self.x0 = outcomeAssessment(np.array(self.rewards), 1600.0)
-		print self.x0
+		self.makeHist()
+
+		#Outcome Assessment
+		'''for i in range(1,self.table.rowCount()+1):
+			self.item_p = QTableWidgetItem(str("%.5f" % outcomeAssessment(np.array(self.rewards), self.max_reward*0.5*(i))))
+			self.item_p.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+			self.table.setItem(i-1, 1, self.item_p)'''
 
 		try:
 			#Update the label's text:
@@ -431,13 +458,8 @@ class SimulationWindow(QWidget):
 		#Overlay the hazmap now that the dem is loaded
 		self.hazmap_sub = rospy.Subscriber('hazmap', Image, self.hazmap_cb)
 
-
+		#Get Goal Prepped ------------------------------------------------------
 		self.goal_titles, self.row = self.getGoals_client()
-
-
-		self.allGoals = zip(self.goal_titles, self.row) #Zip the tuples together so I get a list of tuples (instead of a tuple of lists)
-		self.allGoals = sorted(self.allGoals, key=lambda param: param[0]) #Sort the combined list by the goal ID
-		self.allGoalsDict = dict(self.allGoals)
 
 
 		self.buildTable()
@@ -454,8 +476,8 @@ class SimulationWindow(QWidget):
 		#if self._robotIcon == None:
 		#	thisRobot = QArrow.QArrow(color=QColor(self._colors[0][0], self._colors[0][1], self._colors[0][2]))
 		#	self._robotIcon = thisRobot
-		self.msg.pose.position.x = location.x
-		self.msg.pose.position.y = location.y
+		#self.msg.pose.position.x = location.x
+		#self.msg.pose.position.y = location.y
 		#self.current_state_pub.publish(self.msg)
 		world = list(copy.deepcopy([location.x,location.y]))
 
@@ -523,6 +545,8 @@ class SimulationWindow(QWidget):
 		#self._mirror(self.hazmapItem)
 		
 	def dem_cb(self, msg):
+
+
 		#self.resolution = msg.info.resolution
 		self.w = msg.width
 		self.h = msg.height
