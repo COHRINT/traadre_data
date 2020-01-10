@@ -35,7 +35,7 @@ class MplCanvas(Canvas):
 				
 				self.rewards = self.getRewards_client((self._goal))
 				max_reward = max(self.rewards)
-				width = max_reward*0.16
+				width = max_reward*float(1.0/6.0)
 				location = 0
 				if event.xdata:
 					ax_min, ax_max = event.canvas.ax.get_xlim()
