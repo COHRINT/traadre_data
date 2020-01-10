@@ -32,6 +32,8 @@ from surveywidget import SurveyWidget
 def outcomeAssessment(samples, R_inf):
 	L_samples=np.unique(np.where(samples<R_inf))
 	U_samples=np.unique(np.where(samples>R_inf))
+	if not L_samples.any():
+		return None
 	samples=list(samples)
 	LPM=sum([float(samples[x]*samples.count(samples[x]))/float(len(samples)) for x in L_samples])
 	UPM=sum([float(samples[x]*samples.count(samples[x]))/float(len(samples)) for x in U_samples])
@@ -105,6 +107,7 @@ class SimulationWindow(QWidget):
 		self._robotIcon = None
 		self.demDownsample = 4
 		self.count = 0
+		self.num_options = 5
 
 		#Minimap ---------------------------
 		self.minimapView = QGraphicsView(self); 
@@ -179,7 +182,7 @@ class SimulationWindow(QWidget):
 
 		self.go_btn.clicked.connect(self.operator_toast)
 
-		self.table = QTableWidget(5,5,self)
+		self.table = QTableWidget(self.num_options,5,self)
 
 		self.table.setHorizontalHeaderLabels(('Toggle', 'xP', 'xQ','Reward','Fuel Cost'))
 		self.table.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -362,11 +365,12 @@ class SimulationWindow(QWidget):
 		mu = "%.1f" % np.mean(self.rewards)
 		std = "%.2f" % np.std(self.rewards)
 		self.max_reward = max(self.rewards)
-		self.hist.canvas.ax.axvline(x=self.max_reward*0.16, linestyle = '--', color = 'red')
-		self.hist.canvas.ax.axvline(x=self.max_reward*0.32, linestyle = '--', color = 'red')
-		self.hist.canvas.ax.axvline(x=self.max_reward*0.48, linestyle = '--', color = 'red')
-		self.hist.canvas.ax.axvline(x=self.max_reward*0.64, linestyle = '--', color = 'red')
-		self.hist.canvas.ax.axvline(x=self.max_reward*0.80, linestyle = '--', color = 'red')
+
+		self.hist.canvas.ax.axvline(x=self.max_reward*(1.0/float(self.num_options+1)), linestyle = '--', color = 'red')
+		self.hist.canvas.ax.axvline(x=self.max_reward*(2.0/float(self.num_options+1)), linestyle = '--', color = 'red')
+		self.hist.canvas.ax.axvline(x=self.max_reward*(3.0/float(self.num_options+1)), linestyle = '--', color = 'red')
+		self.hist.canvas.ax.axvline(x=self.max_reward*(4.0/float(self.num_options+1)), linestyle = '--', color = 'red')
+		self.hist.canvas.ax.axvline(x=self.max_reward*(5.0/float(self.num_options+1)), linestyle = '--', color = 'red')
 
 		self.hist.canvas.ax.set_title(r'Histogram of Potential Rewards: $\mu=$ ' + (mu) + r', $\sigma=$' + (std))
 		self.hist.canvas.draw()
@@ -398,10 +402,13 @@ class SimulationWindow(QWidget):
 		self.makeHist()
 
 		#Outcome Assessment
-		'''for i in range(1,self.table.rowCount()+1):
-			self.item_p = QTableWidgetItem(str("%.5f" % outcomeAssessment(np.array(self.rewards), self.max_reward*0.5*(i))))
+		for i in range(1,self.table.rowCount()+1):
+			if outcomeAssessment(np.array(self.rewards), self.max_reward*0.16*(i)):
+				self.item_p = QTableWidgetItem(str("%.5f" % outcomeAssessment(np.array(self.rewards), self.max_reward*0.16*(i))))
+			else: 
+				self.item_p = QTableWidgetItem('N/A')
 			self.item_p.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
-			self.table.setItem(i-1, 1, self.item_p)'''
+			self.table.setItem(i-1, 1, self.item_p)
 
 		try:
 			#Update the label's text:
