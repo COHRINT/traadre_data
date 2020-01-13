@@ -322,6 +322,15 @@ class SimulationWindow(QWidget):
 		except rospy.ServiceException, e:
 			print "Service call failed: %s"%e
 
+	def getPaths_client(self, id):
+		try:
+			goal = rospy.ServiceProxy('/policy/policy_server/GetPaths', GetPaths)
+			response = goal(id)
+
+			return response.paths
+		except rospy.ServiceException, e:
+			print "Service call failed: %s"%e
+
 
 	def setCurrentGoal_client(self,id):
 		try:
@@ -394,13 +403,16 @@ class SimulationWindow(QWidget):
 		self._goalID = self.allGoals[self.count][0]
 		self.setCurrentGoal_client(self._goalID)	
 
+
 		self.msg.pose.position.x = self.allGoalsDict[self.allGoals[self.count-1][0]].x
 		self.msg.pose.position.y = self.allGoalsDict[self.allGoals[self.count-1][0]].y
 		self.current_state_pub.publish(self.msg)
 
 
 		self.makeHist()
-
+		self.paths = self.getPaths_client(self._goalID)
+		print self.paths
+		
 		#Outcome Assessment
 		for i in range(1,self.table.rowCount()+1):
 			if outcomeAssessment(np.array(self.rewards), self.max_reward*0.16*(i)):
