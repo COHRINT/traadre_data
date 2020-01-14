@@ -386,14 +386,15 @@ class SimulationWindow(QWidget):
 
 	def draw_paths(self):
 		self.paths = self.getPaths_client(self._goalID)	
-		self.pathPlane = self.minimapScene.addPixmap(self.makeTransparentPlane(self._dem.width(), self._dem.height()))
-
+		self.planeFlushPaint(self.pathPlane)
+		
 		for i in self.paths:
-			x,y = self.convertToGridCoords(i,20,20)
-			x_norm = float(x/20.0)*self._dem.width()
-			y_norm = float(y/20.0)*self._dem.height()
-			self.planeAddPaint(self.pathPlane, 200, int(x_norm),int(y_norm)) #maybe drawLine
-			#print x, y
+			for j in i.elements:
+				x,y = self.convertToGridCoords(j,20,20)
+				x_norm = float(x/20.0)*self._dem.width()
+				y_norm = float(y/20.0)*self._dem.height()
+				self.planeAddPaint(self.pathPlane, 200, int(x_norm),int(y_norm)) #maybe drawLine
+				#print x, y
 
 		self.pathPlane.setZValue(2)
 	def convertToGridCoords(self,i, width, height):
@@ -419,6 +420,22 @@ class SimulationWindow(QWidget):
 		pen.setWidth(5)
 		painter.setPen(pen)
 		painter.drawPoint(x,y); 
+		painter.end(); 
+		planeWidget.setPixmap(pm); 
+
+
+	def planeFlushPaint(self,planeWidget,col = None,pen=None):
+		pm = planeWidget.pixmap(); 
+		pm.fill(QColor(0,0,0,0)); 
+
+		painter = QPainter(pm); 
+		if(pen is None):
+			if(col is None):
+				pen = QPen(QColor(0,0,0,255)); 
+			else:
+				pen = QPen(col); 
+		painter.setPen(pen)
+
 		painter.end(); 
 		planeWidget.setPixmap(pm); 
 
@@ -521,6 +538,7 @@ class SimulationWindow(QWidget):
 		self.buildTable()
 		self.beliefOpacitySlider.valueChanged.connect(self.sliderChanged);
 		self.shotClock.start(1000) 
+
 
 
 	def _updateRobot(self):
@@ -652,6 +670,7 @@ class SimulationWindow(QWidget):
 		#        image.setColor(255, qRgb(200, 200, 200))  # color for unknown value -1
 
 		self._dem = image       
+		self.pathPlane = self.minimapScene.addPixmap(self.makeTransparentPlane(self._dem.width(), self._dem.height()))
 		self.dem_changed.emit()
 		
 	def goal_cb(self, msg):
