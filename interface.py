@@ -384,6 +384,44 @@ class SimulationWindow(QWidget):
 		self.hist.canvas.ax.set_title(r'Histogram of Potential Rewards: $\mu=$ ' + (mu) + r', $\sigma=$' + (std))
 		self.hist.canvas.draw()
 
+	def draw_paths(self):
+		self.paths = self.getPaths_client(self._goalID)	
+		self.pathPlane = self.minimapScene.addPixmap(self.makeTransparentPlane(self._dem.width(), self._dem.height()))
+
+		for i in self.paths:
+			x,y = self.convertToGridCoords(i,20,20)
+			x_norm = float(x/20.0)*self._dem.width()
+			y_norm = float(y/20.0)*self._dem.height()
+			self.planeAddPaint(self.pathPlane, 200, int(x_norm),int(y_norm)) #maybe drawLine
+			#print x, y
+
+		self.pathPlane.setZValue(2)
+	def convertToGridCoords(self,i, width, height):
+		y = i//width
+		x = i % width
+		return x, y
+
+	def makeTransparentPlane(self, width, height):
+		testMap = QPixmap(width,height); 
+		testMap.fill(QColor(0,0,0,0)); 
+		return testMap; 
+
+	def planeAddPaint(self,planeWidget,value,x,y,col=None,pen=None):
+		pm = planeWidget.pixmap(); 
+		pm.toImage()
+		painter = QPainter(pm); 
+
+		if(pen is None):
+			if(col is None):
+				pen = QPen(QColor(0,0,150,value)); 
+			else:
+				pen = QPen(col); 
+		pen.setWidth(5)
+		painter.setPen(pen)
+		painter.drawPoint(x,y); 
+		painter.end(); 
+		planeWidget.setPixmap(pm); 
+
 	def _updateGoal(self):
 		#Redraw the goal locations
 		#print 'Updating goal locations'
@@ -410,8 +448,7 @@ class SimulationWindow(QWidget):
 
 
 		self.makeHist()
-		self.paths = self.getPaths_client(self._goalID)
-		print self.paths
+		self.draw_paths()
 		
 		#Outcome Assessment
 		for i in range(1,self.table.rowCount()+1):
