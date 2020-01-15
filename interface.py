@@ -177,14 +177,14 @@ class SimulationWindow(QWidget):
 
 		self.go_btn = QPushButton('Go',self)
 		self.go_btn.setEnabled(False)
-		self.pushLayout.addWidget(self.go_btn,6,19,1,1); 
+		self.pushLayout.addWidget(self.go_btn,6,19,1,4); 
 		self.go_btn.setStyleSheet("background-color: grey; color: white")
 
 		self.go_btn.clicked.connect(self.operator_toast)
 
-		self.table = QTableWidget(self.num_options,5,self)
+		self.table = QTableWidget(self.num_options,6,self)
 
-		self.table.setHorizontalHeaderLabels(('Toggle', 'xP', 'xQ','Reward','Fuel Cost'))
+		self.table.setHorizontalHeaderLabels(('Toggle', 'Outcome', 'Solver','Reward','Fuel Cost'))
 		self.table.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 		#self.table.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 		self.table.setStyleSheet("background-color: grey")
@@ -207,8 +207,6 @@ class SimulationWindow(QWidget):
 
 		self.layout.addWidget(histGroup, 1,17,2,8)
 
-
-		#cid = self.hist.canvas.mpl_connect('button_press_event', self)
 
 
 	def sliderChanged(self):
