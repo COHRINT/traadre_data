@@ -8,7 +8,7 @@ import sys,os, os.path
 
 import rospy
 import signal
-import QArrow
+import QCircle
 import math
 import RobotIcon
 from traadre_msgs.msg import *
@@ -122,7 +122,7 @@ class SimulationWindow(QWidget):
 
 
 		#Add arrow ---------------------------------------------
-		self.thisRobot = QArrow.QArrow(color=QColor(0,150,0,200))
+		self.thisRobot = QCircle.QArrow(color=QColor(0,150,0,200))
 		self.minimapScene.addItem(self.thisRobot);
 		self.thisRobot.setZValue(2)
 
@@ -144,7 +144,7 @@ class SimulationWindow(QWidget):
 		stateGroup = QGroupBox()
 		stateGroup.setLayout(self.stateLayout)
 
-		stateGroup.setStyleSheet("background-color: white; border: 4px inset grey;")
+		stateGroup.setStyleSheet("background-color: white; border: 4px inset grey; font: 15pt Lato")
 		self.time_remaining = 120
 
 		self.fuel = QLabel()
@@ -184,10 +184,10 @@ class SimulationWindow(QWidget):
 
 		self.table = QTableWidget(self.num_options,6,self)
 
-		self.table.setHorizontalHeaderLabels(('Toggle', 'Outcome', 'Solver','Reward','Fuel Cost'))
+		self.table.setHorizontalHeaderLabels(('Toggle', 'Outcome', 'Solver','Reward','Fuel Cost', 'Avg. Tiles'))
 		self.table.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 		#self.table.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-		self.table.setStyleSheet("background-color: grey")
+		self.table.setStyleSheet("background-color: rgb(192,192,192)")
 		self.table.setMaximumWidth(self.table.horizontalHeader().length()+30)
 		self.table.setMaximumHeight(self.table.verticalHeader().length()+30)
 
@@ -286,7 +286,7 @@ class SimulationWindow(QWidget):
 			self.cb_list[i].stateChanged.connect(self.checkbox_callback)
 
 			self.item_p = QTableWidgetItem(str(0))
-			item_q = QTableWidgetItem( '%1.2f' % self.allGoals[i][1].y)
+			item_q = QTableWidgetItem(str(0.0))
 			self.table.setToolTip('I am a tool tip')
 			item_reward = QTableWidgetItem(str(50))
 			item_fuel = QTableWidgetItem(str(100 + 10*i))
@@ -359,19 +359,24 @@ class SimulationWindow(QWidget):
 			self.hist.canvas.draw()
 
 			self.histLayout.addWidget(self.hist)
+
 		#Histogram stuff
 		self.hist.canvas.ax.clear()
-
-		self.hist.canvas.ax.set_xlabel('Reward')
-		self.hist.canvas.ax.set_ylabel('Probability density')
-		self.hist.canvas.ax.set_title(r'Histogram of IQ: $\mu=100$, $\sigma=15$')
-
 		self.rewards = self.getRewards_client(self._goalID)	
-		self.hist.canvas.ax.hist(self.rewards, 50)
 
 		mu = "%.1f" % np.mean(self.rewards)
 		std = "%.2f" % np.std(self.rewards)
 		self.max_reward = max(self.rewards)
+		samples = len(self.rewards)
+
+		self.hist.canvas.ax.set_xlabel('Accumulated Reward')
+		self.hist.canvas.ax.set_ylabel('Samples out of ' + str(samples))
+		self.hist.canvas.ax.set_title(r'Histogram of IQ: $\mu=100$, $\sigma=15$')
+
+
+		self.hist.canvas.ax.hist(self.rewards, 50)
+
+
 
 		self.hist.canvas.ax.axvline(x=self.max_reward*(1.0/float(self.num_options+1)), linestyle = '--', color = 'red')
 		self.hist.canvas.ax.axvline(x=self.max_reward*(2.0/float(self.num_options+1)), linestyle = '--', color = 'red')
@@ -379,14 +384,16 @@ class SimulationWindow(QWidget):
 		self.hist.canvas.ax.axvline(x=self.max_reward*(4.0/float(self.num_options+1)), linestyle = '--', color = 'red')
 		self.hist.canvas.ax.axvline(x=self.max_reward*(5.0/float(self.num_options+1)), linestyle = '--', color = 'red')
 
-		self.hist.canvas.ax.set_title(r'Histogram of Potential Rewards: $\mu=$ ' + (mu) + r', $\sigma=$' + (std))
+		self.hist.canvas.ax.set_title(r'Histogram of Potential Rewards: $\mu=$ ' + (mu) + r', $\sigma=$' + (std) + ', Samples used: ' + str(samples))
 		self.hist.canvas.draw()
 
 	def draw_paths(self):
 		self.paths = self.getPaths_client(self._goalID)	
 		self.planeFlushPaint(self.pathPlane)
-		
+		'''for i in range(self.num_options):
+			self.item_tiles = QTableWidgetItem(str)'''
 		for i in self.paths:
+			print i.reward
 			for j in i.elements:
 				x,y = self.convertToGridCoords(j,20,20)
 				x_norm = float(x/20.0)*self._dem.width()
@@ -395,6 +402,29 @@ class SimulationWindow(QWidget):
 				#print x, y
 
 		self.pathPlane.setZValue(2)
+
+
+		'''def draw_paths(self):
+		self.paths = self.getPaths_client(self._goalID)	
+		self.planeFlushPaint(self.pathPlane)
+		memory = []
+		counter = 0
+		for i in self.paths:
+			x_norm = []
+			y_norm = []
+			counter = counter +1
+			if i not in memory:
+				memory.append(i)
+				for j in i.elements:
+					x,y = self.convertToGridCoords(j,20,20)
+					x_norm.append(int(float(x/20.0)*self._dem.width()))
+					y_norm.append(int(float(y/20.0)*self._dem.height()))
+					self.planeAddPaint(self.pathPlane, 200, x_norm, y_norm, QColor(0,0,250-5*counter,200)) 
+					#print x, y
+
+		self.pathPlane.setZValue(2)'''
+
+
 	def convertToGridCoords(self,i, width, height):
 		y = i//width
 		x = i % width
@@ -421,6 +451,23 @@ class SimulationWindow(QWidget):
 		painter.end(); 
 		planeWidget.setPixmap(pm); 
 
+
+		'''def planeAddPaint(self,planeWidget,value,x,y,col,pen=None):
+		pm = planeWidget.pixmap(); 
+		pm.toImage()
+		painter = QPainter(pm); 
+
+		if(pen is None):
+			if(col is None):
+				pen = QPen(QColor(0,0,150,value)); 
+			else:
+				pen = QPen(col); 
+		pen.setWidth(5)
+		painter.setPen(pen)
+		for p in range(len(x)-1):
+			painter.drawLine(x[p],y[p],x[p+1],y[p+1]); 
+		painter.end(); 
+		planeWidget.setPixmap(pm); '''
 
 	def planeFlushPaint(self,planeWidget,col = None,pen=None):
 		pm = planeWidget.pixmap(); 
