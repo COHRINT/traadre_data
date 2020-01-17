@@ -387,11 +387,10 @@ class SimulationWindow(QWidget):
 		self.hist.canvas.ax.set_title(r'Histogram of Potential Rewards: $\mu=$ ' + (mu) + r', $\sigma=$' + (std) + ', Samples used: ' + str(samples))
 		self.hist.canvas.draw()
 
-	def draw_paths(self):
+	'''def draw_paths(self):
 		self.paths = self.getPaths_client(self._goalID)	
 		self.planeFlushPaint(self.pathPlane)
-		'''for i in range(self.num_options):
-			self.item_tiles = QTableWidgetItem(str)'''
+
 		for i in self.paths:
 			print i.reward
 			for j in i.elements:
@@ -401,10 +400,10 @@ class SimulationWindow(QWidget):
 				self.planeAddPaint(self.pathPlane, 200, int(x_norm),int(y_norm)) #maybe drawLine
 				#print x, y
 
-		self.pathPlane.setZValue(2)
+		self.pathPlane.setZValue(2)'''
 
 
-		'''def draw_paths(self):
+	def draw_paths(self):
 		self.paths = self.getPaths_client(self._goalID)	
 		self.planeFlushPaint(self.pathPlane)
 		memory = []
@@ -419,10 +418,10 @@ class SimulationWindow(QWidget):
 					x,y = self.convertToGridCoords(j,20,20)
 					x_norm.append(int(float(x/20.0)*self._dem.width()))
 					y_norm.append(int(float(y/20.0)*self._dem.height()))
-					self.planeAddPaint(self.pathPlane, 200, x_norm, y_norm, QColor(0,0,250-5*counter,200)) 
+					self.planeAddPaint(self.pathPlane, 200, x_norm, y_norm, QColor(0,251,0,5)) 
 					#print x, y
 
-		self.pathPlane.setZValue(2)'''
+		self.pathPlane.setZValue(2)
 
 
 	def convertToGridCoords(self,i, width, height):
@@ -435,7 +434,7 @@ class SimulationWindow(QWidget):
 		testMap.fill(QColor(0,0,0,0)); 
 		return testMap; 
 
-	def planeAddPaint(self,planeWidget,value,x,y,col=None,pen=None):
+	'''def planeAddPaint(self,planeWidget,value,x,y,col=None,pen=None):
 		pm = planeWidget.pixmap(); 
 		pm.toImage()
 		painter = QPainter(pm); 
@@ -449,10 +448,10 @@ class SimulationWindow(QWidget):
 		painter.setPen(pen)
 		painter.drawPoint(x,y); 
 		painter.end(); 
-		planeWidget.setPixmap(pm); 
+		planeWidget.setPixmap(pm); '''
 
 
-		'''def planeAddPaint(self,planeWidget,value,x,y,col,pen=None):
+	def planeAddPaint(self,planeWidget,value,x,y,col,pen=None):
 		pm = planeWidget.pixmap(); 
 		pm.toImage()
 		painter = QPainter(pm); 
@@ -467,7 +466,7 @@ class SimulationWindow(QWidget):
 		for p in range(len(x)-1):
 			painter.drawLine(x[p],y[p],x[p+1],y[p+1]); 
 		painter.end(); 
-		planeWidget.setPixmap(pm); '''
+		planeWidget.setPixmap(pm); 
 
 	def planeFlushPaint(self,planeWidget,col = None,pen=None):
 		pm = planeWidget.pixmap(); 
