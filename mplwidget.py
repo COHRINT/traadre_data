@@ -32,13 +32,14 @@ class MplCanvas(Canvas):
 				'''print('%s click: button=%d, x=%d, y=%d, xdata=%f, ydata=%f' %
 					('double' if event.dblclick else 'single', event.button,
 					 event.x, event.y, event.xdata, event.ydata))'''
-				
+
 				self.rewards = self.getRewards_client((self._goal))
 				max_reward = max(self.rewards)
 				width = max_reward*float(1.0/6.0)
 				location = 0
 				if event.xdata:
 					ax_min, ax_max = event.canvas.ax.get_xlim()
+					event.canvas.ax.set_xlim([0,ax_max])
 					location = math.floor(event.xdata/width) +1 
 
 				try:
@@ -49,16 +50,26 @@ class MplCanvas(Canvas):
 					self.span = event.canvas.ax.axvspan(0, location*width, color='red', alpha=0.5)
 				event.canvas.draw()
 
-				msg.option = int(location-1)
+				if event.ydata and event.xdata:
+					msg.option = int(location-1)
+					msg.boundary = True
+				else:
+					msg.option = 7
+					msg.boundary = False
 				self.option_pub.publish(msg)
+
+
 
 			self.fig = Figure()
 			self.ax = self.fig.add_subplot(111)
+
+
 			Canvas.__init__(self, self.fig)
 			# Matplotlib canvas class to create figure
 
 			Canvas.setSizePolicy(self, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
 			Canvas.updateGeometry(self)
+
 
 
 			cid = self.fig.canvas.mpl_connect('button_press_event', onclick)
@@ -71,7 +82,7 @@ class MplCanvas(Canvas):
 			worldX = msg.pose.x
 			worldY = msg.pose.y
 
-			print 'Got Goal at: ' + str(worldX) + ',' + str(worldY)
+			#print 'Got Goal at: ' + str(worldX) + ',' + str(worldY)
 
 			self._goal = msg.id
 				#self.goals_changed.emit()

@@ -50,7 +50,7 @@ class SimulationWindow(QWidget):
 	goals_changed = pyqtSignal()
 	hazmap_changed = pyqtSignal(int)
 	rightClick = pyqtSignal(int,int)
-	option_changed = pyqtSignal(int)
+	option_changed = pyqtSignal(int, bool)
 	state = pyqtSignal(int,int)
 
 	def __init__(self):
@@ -108,6 +108,7 @@ class SimulationWindow(QWidget):
 		self.demDownsample = 4
 		self.count = 0
 		self.num_options = 5
+		self.paths = None
 
 		#Minimap ---------------------------
 		self.minimapView = QGraphicsView(self); 
@@ -219,10 +220,27 @@ class SimulationWindow(QWidget):
 			self.timer.setText('Time Remaining: ' + str(self.time_remaining) + ' seconds')
 
 	def option_cb(self, data):
-		self.option_changed.emit(data.option)
+		self.option_changed.emit(data.option, data.boundary)
 
-	def _updateOption(self, option):
-		self.table.selectRow(option)
+	def _updateOption(self, option, boundary):
+
+		if boundary == False:
+			self.table.clearSelection()
+		else:
+			self.table.selectRow(option)
+		'''self.planeFlushPaint(self.pathPlane)
+		x_tmp = []
+		y_tmp = []
+		tile_x = (float(self._dem.width())/20.0)/2
+		tile_y = (float(self._dem.height())/20.0)/2
+		for i in self.pathDict.keys():
+			band = self.max_reward*float(1.0/6.0)*option
+			if int(i) > band:
+				for j in self.pathDict[i]:
+					x,y = self.convertToGridCoords(j,20,20)
+					x_tmp.append(int(float(x/20.0)*self._dem.width() + tile_x))
+					y_tmp.append(int(float(y/20.0)*self._dem.height() + tile_y))
+					self.planeAddPaint(self.pathPlane, 200, x_tmp, y_tmp, QColor(250,251,0,50)) '''
 
 	def operator_toast(self):
 		'''print "Opening a new popup window..."
@@ -237,10 +255,9 @@ class SimulationWindow(QWidget):
 			self.time_remaining = 120
 			self.timer.setText('Time Remaining: ' + str(self.time_remaining) + ' seconds')
 			self.count = self.count +1
-			self.goals_changed.emit()
+			self.buildTable()
 			self.go_btn.setEnabled(False)
 			self.go_btn.setStyleSheet("background-color: grey; color: white")
-			self.buildTable()
 
 
 	def make_connections(self): 
@@ -406,23 +423,51 @@ class SimulationWindow(QWidget):
 	def draw_paths(self):
 		self.paths = self.getPaths_client(self._goalID)	
 		self.planeFlushPaint(self.pathPlane)
+		tile_x = (float(self._dem.width())/20.0)/2
+		tile_y = (float(self._dem.height())/20.0)/2
 		memory = []
 		counter = 0
+		self.pathDict = {}
 		for i in self.paths:
 			x_norm = []
 			y_norm = []
 			counter = counter +1
 			if i not in memory:
+				self.pathDict[str(i.reward)] = (i.elements)
 				memory.append(i)
 				for j in i.elements:
 					x,y = self.convertToGridCoords(j,20,20)
-					x_norm.append(int(float(x/20.0)*self._dem.width()))
-					y_norm.append(int(float(y/20.0)*self._dem.height()))
+					x_norm.append(int(float(x/20.0)*self._dem.width() + tile_x))
+					y_norm.append(int(float(y/20.0)*self._dem.height() + tile_y))
 					self.planeAddPaint(self.pathPlane, 200, x_norm, y_norm, QColor(0,251,0,5)) 
 					#print x, y
 
 		self.pathPlane.setZValue(2)
 
+	def avg_paths(self):
+		band = self.max_reward*float(1.0/6.0)
+		first = []
+		sec = []
+		thir = []
+		four = []
+		fifth = []
+		lengths = []
+		for i in self.pathDict.keys():
+			if int(i) < band:
+				first.append(len(self.pathDict[i]))
+			if int(i) < 2*band:
+				sec.append(len(self.pathDict[i]))
+			if int(i) < 3*band:
+				thir.append(len(self.pathDict[i]))
+			if int(i) < 4*band:
+				four.append(len(self.pathDict[i]))
+			if int(i) < 5*band:
+				fifth.append(len(self.pathDict[i]))
+		lengths = [first, sec, thir, four, fifth]
+		for i in range(self.num_options): 
+			value = QTableWidgetItem("%.2f" % np.mean(lengths[i]))
+			value.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+			self.table.setItem(i, 5, value)
 
 	def convertToGridCoords(self,i, width, height):
 		y = i//width
@@ -510,6 +555,7 @@ class SimulationWindow(QWidget):
 
 		self.makeHist()
 		self.draw_paths()
+		self.avg_paths()
 		
 		#Outcome Assessment
 		for i in range(1,self.table.rowCount()+1):
