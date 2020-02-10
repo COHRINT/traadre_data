@@ -122,8 +122,8 @@ class SimulationWindow(QWidget):
 		self.layout.addWidget(self.minimapView,1,1,2,8);
 
 
-		#Add arrow ---------------------------------------------
-		self.thisRobot = QCircle.QArrow(color=QColor(0,150,0,200))
+		#Add circle ---------------------------------------------
+		self.thisRobot = QCircle.QArrow(color=QColor(0,250,0,255))
 		self.minimapScene.addItem(self.thisRobot);
 		self.thisRobot.setZValue(2)
 
@@ -243,10 +243,11 @@ class SimulationWindow(QWidget):
 					self.planeAddPaint(self.pathPlane, 200, x_tmp, y_tmp, QColor(250,251,0,50)) '''
 
 	def operator_toast(self):
-		'''print "Opening a new popup window..."
+		print "Opening a new popup window..."
+		self.setEnabled(False)
 		self.w = SurveyWidget()
-		self.w.setGeometry(QRect(100, 100, 400, 200))
-		self.w.show()'''
+		self.w.setGeometry(QRect(100, 100, 800, 800))
+		self.w.show()
 
 		toast = QInputDialog()
 		self.val, okPressed = toast.getInt(self, "Confidence","Rate Your Confidence:", 1, 0, 5, 1)
