@@ -219,6 +219,15 @@ class SimulationWindow(QWidget):
 			self.time_remaining = self.time_remaining - 1
 			self.timer.setText('Time Remaining: ' + str(self.time_remaining) + ' seconds')
 
+		if self.time_remaining > 60:
+			self.timer.setStyleSheet("background-color: rgba(192,192,192,255)")
+
+		if self.time_remaining > 10 and self.time_remaining < 60:
+			self.timer.setStyleSheet("background-color: rgba(255,255,0,150)")
+
+		if self.time_remaining < 10:
+			self.timer.setStyleSheet("background-color: rgba(255,0,0,150)")
+
 	def option_cb(self, data):
 		self.option_changed.emit(data.option, data.boundary)
 
@@ -317,6 +326,7 @@ class SimulationWindow(QWidget):
 			self.table.setItem(i, 2, item_q)
 			self.table.setItem(i, 3, item_reward)
 			self.table.setItem(i, 4, item_fuel)
+		#self.table.resizeColumnsToContents()
 
 
 	def getGoals_client(self):
