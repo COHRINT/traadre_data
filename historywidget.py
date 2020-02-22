@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import *;
 from PyQt5.QtGui import *;
 from PyQt5.QtCore import *;
 
-class SurveyWidget(QtWidgets.QWidget):
+class HistoryWidget(QtWidgets.QWidget):
 	def __init__(self, parent=None):
 		QtWidgets.QWidget.__init__(self)   # Inherit from QWidget 
 		self.setWindowModality(3)

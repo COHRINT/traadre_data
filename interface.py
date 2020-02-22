@@ -119,6 +119,7 @@ class SimulationWindow(QWidget):
 		self.minimapView.setScene(self.minimapScene);
 		#self.minimapView.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 		#self.minimapView.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+		self.minimapView.setStyleSheet("background-color: beige; border: 4px inset grey;")
 		self.layout.addWidget(self.minimapView,1,1,2,8);
 
 
@@ -145,7 +146,7 @@ class SimulationWindow(QWidget):
 		stateGroup = QGroupBox()
 		stateGroup.setLayout(self.stateLayout)
 
-		stateGroup.setStyleSheet("background-color: white; border: 4px inset grey; font: 15pt Lato")
+		stateGroup.setStyleSheet("background-color: beige; border: 4px inset grey; font: 15pt Lato")
 		self.time_remaining = 120
 
 		self.fuel = QLabel()
@@ -174,15 +175,32 @@ class SimulationWindow(QWidget):
 		goGroup = QGroupBox()
 		goGroup.setLayout(self.pushLayout)
 
-		goGroup.setStyleSheet("QGroupBox {background-color: white; border: 4px inset grey;}")
+		goGroup.setStyleSheet("QGroupBox {background-color: beige; border: 4px inset grey;}")
 
 		self.go_btn = QPushButton('Go',self)
 		self.go_btn.setEnabled(False)
-		self.pushLayout.addWidget(self.go_btn,6,19,1,4); 
+		self.pushLayout.addWidget(self.go_btn,5,19,1,4); 
 		self.go_btn.setStyleSheet("background-color: grey; color: white")
 
-		self.go_btn.clicked.connect(self.operator_toast)
+		self.no_btn = QPushButton('No Go',self)
+		self.no_btn.setEnabled(False)
+		self.pushLayout.addWidget(self.no_btn,6,19,1,4); 
+		self.no_btn.setStyleSheet("background-color: grey; color: white")
 
+		self.info_btn = QPushButton('Explain',self)
+		self.info_btn.setEnabled(False)
+		self.pushLayout.addWidget(self.info_btn,7,19,1,4); 
+
+		self.prev_btn = QPushButton('Previous Traverse',self)
+		self.prev_btn.setEnabled(False)
+		self.pushLayout.addWidget(self.prev_btn,8,19,1,4); 
+
+		
+
+		self.go_btn.clicked.connect(self.operator_toast)
+		self.no_btn.clicked.connect(self.operator_toast)
+
+		#--------------------------------------------------------------------
 		self.table = QTableWidget(self.num_options,6,self)
 
 		self.table.setHorizontalHeaderLabels(('Toggle', 'Outcome', 'Solver','Reward','Fuel Cost', 'Avg. Tiles'))
@@ -193,7 +211,7 @@ class SimulationWindow(QWidget):
 		self.table.setMaximumHeight(self.table.verticalHeader().length()+30)
 
 
-		self.pushLayout.addWidget(self.table,6,16,1,1); 
+		self.pushLayout.addWidget(self.table,5,16,3,1); 
 		self.layout.addWidget(goGroup,9,16,2,10)
 
 
@@ -203,8 +221,8 @@ class SimulationWindow(QWidget):
 		histGroup = QGroupBox()
 		histGroup.setLayout(self.histLayout)
 
-		histGroup.setStyleSheet("QGroupBox {background-color: white; border: 4px inset grey;}")
-
+		histGroup.setStyleSheet("QGroupBox {background-color: beige; border: 4px inset grey;}")
+		histGroup.setToolTip('Choose one of reward distribution bins')
 
 		self.layout.addWidget(histGroup, 1,17,2,8)
 
@@ -256,18 +274,18 @@ class SimulationWindow(QWidget):
 		self.setEnabled(False)
 		self.w = SurveyWidget()
 		self.w.setGeometry(QRect(100, 100, 800, 800))
+		self.w.submit_btn.clicked.connect(self.w.submit)
 		self.w.show()
 
-		toast = QInputDialog()
-		self.val, okPressed = toast.getInt(self, "Confidence","Rate Your Confidence:", 1, 0, 5, 1)
-
-		if okPressed:
-			self.time_remaining = 120
-			self.timer.setText('Time Remaining: ' + str(self.time_remaining) + ' seconds')
-			self.count = self.count +1
-			self.buildTable()
-			self.go_btn.setEnabled(False)
-			self.go_btn.setStyleSheet("background-color: grey; color: white")
+		#toast = QInputDialog()
+		#self.val, okPressed = toast.getInt(self, "Confidence","Rate Your Confidence:", 1, 0, 5, 1)
+		
+		'''self.time_remaining = 120
+		self.timer.setText('Time Remaining: ' + str(self.time_remaining) + ' seconds')
+		self.count = self.count +1
+		self.buildTable()
+		self.go_btn.setEnabled(False)
+		self.go_btn.setStyleSheet("background-color: grey; color: white")'''
 
 
 	def make_connections(self): 
@@ -292,9 +310,18 @@ class SimulationWindow(QWidget):
 		if count == 2:
 			self.go_btn.setEnabled(True)
 			self.go_btn.setStyleSheet("background-color: green; color: white")
+			self.no_btn.setEnabled(False)
+			self.no_btn.setStyleSheet("background-color: grey; color: white")
+		elif count == 0:
+			self.no_btn.setEnabled(True)
+			self.no_btn.setStyleSheet("background-color: red; color: white")
+			self.go_btn.setEnabled(False)
+			self.go_btn.setStyleSheet("background-color: grey; color: white")
 		else: 
 			self.go_btn.setEnabled(False)
 			self.go_btn.setStyleSheet("background-color: grey; color: white")
+			self.no_btn.setEnabled(False)
+			self.no_btn.setStyleSheet("background-color: grey; color: white")
 
 	def buildTable(self):
 		self.goals_changed.emit()
@@ -314,7 +341,7 @@ class SimulationWindow(QWidget):
 
 			self.item_p = QTableWidgetItem(str(0))
 			item_q = QTableWidgetItem(str(0.0))
-			self.table.setToolTip('I am a tool tip')
+			self.table.setToolTip('Choose one of the navigation options')
 			item_reward = QTableWidgetItem(str(50))
 			item_fuel = QTableWidgetItem(str(100 + 10*i))
 			
