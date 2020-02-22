@@ -453,15 +453,15 @@ class SimulationWindow(QWidget):
 		fifth = []
 		lengths = []
 		for i in self.pathDict.keys():
-			if int(i) < band:
+			if int(i) > band:
 				first.append(len(self.pathDict[i]))
-			if int(i) < 2*band:
+			if int(i) > 2*band:
 				sec.append(len(self.pathDict[i]))
-			if int(i) < 3*band:
+			if int(i) > 3*band:
 				thir.append(len(self.pathDict[i]))
-			if int(i) < 4*band:
+			if int(i) > 4*band:
 				four.append(len(self.pathDict[i]))
-			if int(i) < 5*band:
+			if int(i) > 5*band:
 				fifth.append(len(self.pathDict[i]))
 		lengths = [first, sec, thir, four, fifth]
 		for i in range(self.num_options): 
