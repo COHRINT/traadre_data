@@ -28,6 +28,7 @@ from cv_bridge import CvBridge, CvBridgeError
 
 from mplwidget import MplWidget
 from surveywidget import SurveyWidget
+from historywidget import HistoryWidget
 
 def outcomeAssessment(samples, R_inf):
 	L_samples=np.unique(np.where(samples<R_inf))
@@ -150,15 +151,19 @@ class SimulationWindow(QWidget):
 		self.time_remaining = 120
 
 		self.fuel = QLabel()
+		self.fuel.setStyleSheet("background-color: white")
 		self.timer = QLabel()
+		self.timer.setStyleSheet("background-color: white")
 		self.goal = QLabel()
+		self.goal.setStyleSheet("background-color: white")
 		self.score = QLabel()
+		self.score.setStyleSheet("background-color: white")
 		self.shotClock = QTimer()
 
 		self.shotClock.timeout.connect(self.updateTime)
 
 
-		self.fuel.setText('Fuel Remaining: 100%')
+		self.fuel.setText('')
 		self.goal.setText('Current Goal: ' + self._goalID)
 		self.timer.setText('Time Remaining: ' + str(self.time_remaining) + ' seconds')
 		self.score.setText('Current Score: ' + str(self.current_score))
@@ -190,25 +195,27 @@ class SimulationWindow(QWidget):
 		self.info_btn = QPushButton('Explain',self)
 		self.info_btn.setEnabled(False)
 		self.pushLayout.addWidget(self.info_btn,7,19,1,4); 
+		self.info_btn.setStyleSheet("background-color: grey; color: white")
 
 		self.prev_btn = QPushButton('Previous Traverse',self)
 		self.prev_btn.setEnabled(False)
 		self.pushLayout.addWidget(self.prev_btn,8,19,1,4); 
-
+		self.prev_btn.setStyleSheet("background-color: grey; color: white")
 		
 
 		self.go_btn.clicked.connect(self.operator_toast)
 		self.no_btn.clicked.connect(self.operator_toast)
+		self.prev_btn.clicked.connect(self.traverse_history)
 
 		#--------------------------------------------------------------------
 		self.table = QTableWidget(self.num_options,6,self)
 
 		self.table.setHorizontalHeaderLabels(('Toggle', 'Outcome', 'Solver','Reward','Fuel Cost', 'Avg. Tiles'))
 		self.table.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-		#self.table.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+		self.table.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 		self.table.setStyleSheet("background-color: rgb(192,192,192)")
-		self.table.setMaximumWidth(self.table.horizontalHeader().length()+30)
-		self.table.setMaximumHeight(self.table.verticalHeader().length()+30)
+		self.table.setMaximumWidth(self.table.horizontalHeader().length()+25)
+		self.table.setMaximumHeight(self.table.verticalHeader().length()+25)
 
 
 		self.pushLayout.addWidget(self.table,5,16,3,1); 
@@ -272,21 +279,30 @@ class SimulationWindow(QWidget):
 	def operator_toast(self):
 		print "Opening a new popup window..."
 		self.setEnabled(False)
-		self.w = SurveyWidget()
-		self.w.setGeometry(QRect(100, 100, 800, 800))
-		self.w.submit_btn.clicked.connect(self.w.submit)
-		self.w.show()
+		self.survey = SurveyWidget()
+		self.survey.setGeometry(QRect(100, 100, 800, 800))
+		self.survey.submit_btn.clicked.connect(self.submit)
+		self.survey.show()
 
-		#toast = QInputDialog()
-		#self.val, okPressed = toast.getInt(self, "Confidence","Rate Your Confidence:", 1, 0, 5, 1)
-		
-		'''self.time_remaining = 120
+	def traverse_history(self):
+		print "Opening a new popup window..."
+		self.setEnabled(False)
+		self.trav_hist = HistoryWidget()
+		self.trav_hist.setGeometry(QRect(100, 100, 800, 800))
+		#self.trav_hist.submit_btn.clicked.connect(self.submit)
+		self.trav_hist.show()
+
+
+
+	def submit(self):
+		self.time_remaining = 120
 		self.timer.setText('Time Remaining: ' + str(self.time_remaining) + ' seconds')
 		self.count = self.count +1
 		self.buildTable()
 		self.go_btn.setEnabled(False)
-		self.go_btn.setStyleSheet("background-color: grey; color: white")'''
-
+		self.go_btn.setStyleSheet("background-color: grey; color: white")
+		self.survey.close()
+		self.setEnabled(True)
 
 	def make_connections(self): 
 		'''self.minimapView.mousePressEvent = lambda event:imageMousePress(event,self); 
@@ -590,6 +606,9 @@ class SimulationWindow(QWidget):
 		self.msg.pose.position.y = self.allGoalsDict[self.allGoals[self.count-1][0]].y
 		self.current_state_pub.publish(self.msg)
 
+		if self.count == 1:
+			self.prev_btn.setEnabled(True)
+			self.prev_btn.setStyleSheet('background-color: green; color: white')
 
 		self.makeHist()
 		self.draw_paths()

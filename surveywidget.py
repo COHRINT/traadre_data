@@ -11,6 +11,8 @@ class SurveyWidget(QtWidgets.QWidget):
 		QtWidgets.QWidget.__init__(self)   # Inherit from QWidget 
 		self.setWindowModality(3)
 		self.setWindowTitle('Provide Input')
+		self.setStyleSheet("background-color:slategray;")
+		self.setWindowFlags(QtCore.Qt.Window | QtCore.Qt.CustomizeWindowHint | QtCore.Qt.WindowTitleHint | QtCore.Qt.WindowStaysOnTopHint)
 		self.center()
 
 		
@@ -41,6 +43,7 @@ class SurveyWidget(QtWidgets.QWidget):
 		for i in range(0,len(self.s_list)):
 			self.s_list[i].setMinimum(0)
 			self.s_list[i].setMaximum(5)
+			self.s_list[i].setTickPosition(QSlider.TicksBelow)
 			self.h_list[i].addWidget(self.s_list[i])
 
 
@@ -68,8 +71,5 @@ class SurveyWidget(QtWidgets.QWidget):
 		self.move((resolution.width()),
 				  (resolution.height())) 
 
-	def submit(self):
-		#publish shit
-		#close self 
-		self.close()
+
 
