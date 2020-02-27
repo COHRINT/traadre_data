@@ -177,13 +177,9 @@ class SimulationWindow(QWidget):
 		self.stateLayout.addWidget(self.score,12,2); 
 		self.layout.addWidget(stateGroup,10,1,1,8)
 
-		self.timer.setToolTip("Time remaining to make decision, at 0 there will be a penalty")
-		self.timer.setStyleSheet("""QToolTip { 
-                           background-color: black; 
-                           color: white; 
-                           border: black solid 1px
-                           }""")
-		self.goal.setToolTip("Current navigation goal from [A,F]")
+		#self.timer.setToolTip("Time remaining to make decision, at 0 there will be a penalty")
+		#self.timer.setStyleSheet("""QToolTip { background-color: black; color: white; border: black solid 1px }""")
+		#self.goal.setToolTip("Current navigation goal from [A,F]")
 
 		#------------------------------------------
 		self.pushLayout = QGridLayout();

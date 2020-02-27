@@ -26,18 +26,24 @@ class SurveyWidget(QtWidgets.QWidget):
 		sliderGroup1 = QGroupBox()
 		sliderGroup1.setStyleSheet("QGroupBox {background-color: beige; border: 4px inset grey;}")
 
-		hbox1 = QtWidgets.QHBoxLayout()
-		hbox2 = QtWidgets.QHBoxLayout()
-		hbox3 = QtWidgets.QHBoxLayout()
-		hbox4 = QtWidgets.QHBoxLayout()
-		hbox5 = QtWidgets.QHBoxLayout()
+		hbox1 = QtWidgets.QVBoxLayout()
+		hbox2 = QtWidgets.QVBoxLayout()
+		hbox3 = QtWidgets.QVBoxLayout()
+		hbox4 = QtWidgets.QVBoxLayout()
+		hbox5 = QtWidgets.QVBoxLayout()
 		vbox = QtWidgets.QVBoxLayout()
 		s1  = QtWidgets.QSlider(Qt.Horizontal)
 		s2  = QtWidgets.QSlider(Qt.Horizontal)
 		s3  = QtWidgets.QSlider(Qt.Horizontal)
 		s4  = QtWidgets.QSlider(Qt.Horizontal)
 		s5  = QtWidgets.QSlider(Qt.Horizontal)
+		q1 = QLabel()
+		q2 = QLabel()
+		q3 = QLabel()
+		q4 = QLabel()
+		q5 = QLabel()
 
+		self.q_list = [q1, q2, q3, q4, q5]
 		self.s_list = [s1, s2, s3, s4, s5]
 		self.h_list = [hbox1,hbox2,hbox3,hbox4,hbox5]
 		for i in range(0,len(self.s_list)):
@@ -45,7 +51,11 @@ class SurveyWidget(QtWidgets.QWidget):
 			self.s_list[i].setMaximum(5)
 			self.s_list[i].setTickPosition(QSlider.TicksBelow)
 			self.s_list[i].setStyleSheet("background-color: beige; color: white")
+			self.q_list[i].setText('I am label, add question pls')
+			self.q_list[i].setStyleSheet("background-color: beige; color: black")
+			self.h_list[i].addWidget(self.q_list[i])
 			self.h_list[i].addWidget(self.s_list[i])
+
 
 
 			vbox.addLayout(self.h_list[i])
