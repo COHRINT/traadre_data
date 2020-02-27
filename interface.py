@@ -111,6 +111,7 @@ class SimulationWindow(QWidget):
 		self.num_options = 5
 		self.paths = None
 
+
 		#Minimap ---------------------------
 		self.minimapView = QGraphicsView(self); 
 		self.minimapScene = QGraphicsScene(self);
@@ -155,8 +156,10 @@ class SimulationWindow(QWidget):
 		self.timer = QLabel()
 		self.timer.setStyleSheet("background-color: white")
 		self.goal = QLabel()
+
 		self.goal.setStyleSheet("background-color: white")
 		self.score = QLabel()
+		self.score.setToolTip("Current score")
 		self.score.setStyleSheet("background-color: white")
 		self.shotClock = QTimer()
 
@@ -173,6 +176,14 @@ class SimulationWindow(QWidget):
 		self.stateLayout.addWidget(self.timer,11,2); 
 		self.stateLayout.addWidget(self.score,12,2); 
 		self.layout.addWidget(stateGroup,10,1,1,8)
+
+		self.timer.setToolTip("Time remaining to make decision, at 0 there will be a penalty")
+		self.timer.setStyleSheet("""QToolTip { 
+                           background-color: black; 
+                           color: white; 
+                           border: black solid 1px
+                           }""")
+		self.goal.setToolTip("Current navigation goal from [A,F]")
 
 		#------------------------------------------
 		self.pushLayout = QGridLayout();

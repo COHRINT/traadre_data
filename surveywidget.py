@@ -24,7 +24,7 @@ class SurveyWidget(QtWidgets.QWidget):
 		# Slider Group1 
 
 		sliderGroup1 = QGroupBox()
-		sliderGroup1.setStyleSheet("QGroupBox {background-color: white; border: 4px inset grey;}")
+		sliderGroup1.setStyleSheet("QGroupBox {background-color: beige; border: 4px inset grey;}")
 
 		hbox1 = QtWidgets.QHBoxLayout()
 		hbox2 = QtWidgets.QHBoxLayout()
@@ -44,6 +44,7 @@ class SurveyWidget(QtWidgets.QWidget):
 			self.s_list[i].setMinimum(0)
 			self.s_list[i].setMaximum(5)
 			self.s_list[i].setTickPosition(QSlider.TicksBelow)
+			self.s_list[i].setStyleSheet("background-color: beige; color: white")
 			self.h_list[i].addWidget(self.s_list[i])
 
 
@@ -56,10 +57,12 @@ class SurveyWidget(QtWidgets.QWidget):
 		Group = QGroupBox()
 		Group.setLayout(self.pushLayout)
 
-		Group.setStyleSheet("QGroupBox {background-color: white; border: 4px inset grey;}")
+		Group.setStyleSheet("QGroupBox {background-color: beige; border: 4px inset grey;}")
 
 		self.submit_btn = QPushButton('Submit',self)
+		self.submit_btn.setStyleSheet(("background-color: green; color: white"))
 		self.pushLayout.addWidget(self.submit_btn,11,0,2,4); 
+
 
 		self.layout.addWidget(Group,11,0,2,4)
 
