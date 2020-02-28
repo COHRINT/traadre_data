@@ -376,6 +376,7 @@ class SimulationWindow(QWidget):
 			self.table.setItem(i, 2, item_q)
 			self.table.setItem(i, 3, item_reward)
 			self.table.setItem(i, 4, item_fuel)
+
 		#self.table.resizeColumnsToContents()
 
 
@@ -620,6 +621,7 @@ class SimulationWindow(QWidget):
 		self.makeHist()
 		self.draw_paths()
 		self.avg_paths()
+
 		
 		#Outcome Assessment
 		for i in range(1,self.table.rowCount()+1):
@@ -629,6 +631,11 @@ class SimulationWindow(QWidget):
 				self.item_p = QTableWidgetItem('N/A')
 			self.item_p.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
 			self.table.setItem(i-1, 1, self.item_p)
+			if outcomeAssessment(np.array(self.rewards), self.max_reward*0.16*(i)) > 0:
+				self.table.item(i-1,1).setBackground(QtGui.QColor(0, 204*outcomeAssessment(np.array(self.rewards), self.max_reward*0.16*(i)), 0))
+			else:
+				self.table.item(i-1,1).setBackground(QtGui.QColor(204*-1*outcomeAssessment(np.array(self.rewards), self.max_reward*0.16*(i)), 0, 0))	
+
 
 		try:
 			#Update the label's text:
@@ -656,8 +663,6 @@ class SimulationWindow(QWidget):
 
 		except:
 			pass
-
-
 
 	def _update(self):
 		if self._dem_item:
