@@ -5,6 +5,8 @@ from PyQt5 import QtGui, QtCore, QtWidgets
 from PyQt5.QtWidgets import *; 
 from PyQt5.QtGui import *;
 from PyQt5.QtCore import *;
+import rospy
+from traadre_msgs.msg import *
 
 class SurveyWidget(QtWidgets.QWidget):
 	def __init__(self, parent=None):
@@ -20,6 +22,7 @@ class SurveyWidget(QtWidgets.QWidget):
 
 		self.displayLayout = QGridLayout();
 		self.pushLayout = QGridLayout();
+		self.survey_pub = rospy.Publisher('survey', Survey, queue_size=10)
 
 		# Slider Group1 
 
@@ -42,8 +45,11 @@ class SurveyWidget(QtWidgets.QWidget):
 		q3 = QLabel()
 		q4 = QLabel()
 		q5 = QLabel()
+		self.msg = Survey()
 
 		self.q_list = [q1, q2, q3, q4, q5]
+		self.qs_list = ['How do you feel?', 'What is feeling?', 'Whats your GPA', 'Whats your major?', 'Whats your name']
+		self.msg.questions = self.qs_list
 		self.s_list = [s1, s2, s3, s4, s5]
 		self.h_list = [hbox1,hbox2,hbox3,hbox4,hbox5]
 		for i in range(0,len(self.s_list)):
@@ -51,7 +57,7 @@ class SurveyWidget(QtWidgets.QWidget):
 			self.s_list[i].setMaximum(5)
 			self.s_list[i].setTickPosition(QSlider.TicksBelow)
 			self.s_list[i].setStyleSheet("background-color: beige; color: white")
-			self.q_list[i].setText('I am label, add question pls')
+			self.q_list[i].setText(self.qs_list[i])
 			self.q_list[i].setStyleSheet("background-color: beige; color: black")
 			self.h_list[i].addWidget(self.q_list[i])
 			self.h_list[i].addWidget(self.s_list[i])
@@ -71,6 +77,7 @@ class SurveyWidget(QtWidgets.QWidget):
 
 		self.submit_btn = QPushButton('Submit',self)
 		self.submit_btn.setStyleSheet(("background-color: green; color: white"))
+		self.submit_btn.clicked.connect(self.submit)
 		self.pushLayout.addWidget(self.submit_btn,11,0,2,4); 
 
 
@@ -86,3 +93,10 @@ class SurveyWidget(QtWidgets.QWidget):
 
 
 
+	def submit(self):
+		answers = []
+		for i in range(len(self.q_list)):
+			answers.append(self.s_list[i].value())
+
+		self.msg.answers = answers
+		self.survey_pub.publish(self.msg)

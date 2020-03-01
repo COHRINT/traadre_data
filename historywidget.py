@@ -22,8 +22,10 @@ class HistoryWidget(QtWidgets.QWidget):
 		self.setWindowModality(3)
 		self.setWindowTitle('Previous Traverse Results')
 		self.setStyleSheet("background-color:slategray;")
+		self.setWindowFlags(QtCore.Qt.Window | QtCore.Qt.CustomizeWindowHint | QtCore.Qt.WindowTitleHint | QtCore.Qt.WindowStaysOnTopHint)
 		self.center()
 		self.layout = QGridLayout()
+		self.pushLayout = QGridLayout();
 		self.setLayout(self.layout)
 		self.demDownsample = 4
 		self.hazmapItem = None
@@ -34,7 +36,21 @@ class HistoryWidget(QtWidgets.QWidget):
 		self.minimapView.setStyleSheet("background-color: beige; border: 4px inset grey;")
 
 
-		self.layout.addWidget(self.minimapView,1,1,2,8);
+		self.layout.addWidget(self.minimapView,1,0,3,8);
+
+		# Submit
+		Group = QGroupBox()
+		Group.setLayout(self.pushLayout)
+
+		Group.setStyleSheet("QGroupBox {background-color: beige; border: 4px inset grey;}")
+
+		self.submit_btn = QPushButton('Submit',self)
+		self.submit_btn.setStyleSheet(("background-color: green; color: white"))
+		self.pushLayout.addWidget(self.submit_btn,9,0,1,8); 
+
+
+		self.layout.addWidget(Group,9,0,1,8)
+
 
 		self.dem_sub = rospy.Subscriber('dem', Image, self.dem_cb)
 

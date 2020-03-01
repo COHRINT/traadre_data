@@ -288,7 +288,7 @@ class SimulationWindow(QWidget):
 		self.setEnabled(False)
 		self.survey = SurveyWidget()
 		self.survey.setGeometry(QRect(100, 100, 800, 800))
-		self.survey.submit_btn.clicked.connect(self.submit)
+		self.survey.submit_btn.clicked.connect(self.survey_submit)
 		self.survey.show()
 
 	def traverse_history(self):
@@ -296,12 +296,15 @@ class SimulationWindow(QWidget):
 		self.setEnabled(False)
 		self.trav_hist = HistoryWidget()
 		self.trav_hist.setGeometry(QRect(100, 100, 800, 800))
-		#self.trav_hist.submit_btn.clicked.connect(self.submit)
+		self.trav_hist.submit_btn.clicked.connect(self.trav_submit)
 		self.trav_hist.show()
 
 
+	def trav_submit(self):
+		self.trav_hist.close()
+		self.setEnabled(True)
 
-	def submit(self):
+	def survey_submit(self):
 		self.time_remaining = 120
 		self.timer.setText('Time Remaining: ' + str(self.time_remaining) + ' seconds')
 		self.count = self.count +1
@@ -625,16 +628,17 @@ class SimulationWindow(QWidget):
 		
 		#Outcome Assessment
 		for i in range(1,self.table.rowCount()+1):
-			if outcomeAssessment(np.array(self.rewards), self.max_reward*0.16*(i)):
-				self.item_p = QTableWidgetItem(str("%.5f" % outcomeAssessment(np.array(self.rewards), self.max_reward*0.16*(i))))
+			outcome = outcomeAssessment(np.array(self.rewards), self.max_reward*0.16*(i))
+			if outcome:
+				self.item_p = QTableWidgetItem(str("%.5f" % outcome))
 			else: 
 				self.item_p = QTableWidgetItem('N/A')
 			self.item_p.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
 			self.table.setItem(i-1, 1, self.item_p)
-			if outcomeAssessment(np.array(self.rewards), self.max_reward*0.16*(i)) > 0:
-				self.table.item(i-1,1).setBackground(QtGui.QColor(0, 204*outcomeAssessment(np.array(self.rewards), self.max_reward*0.16*(i)), 0))
+			if outcome > 0:
+				self.table.item(i-1,1).setBackground(QtGui.QColor(0, 250, 0, 150*outcome))
 			else:
-				self.table.item(i-1,1).setBackground(QtGui.QColor(204*-1*outcomeAssessment(np.array(self.rewards), self.max_reward*0.16*(i)), 0, 0))	
+				self.table.item(i-1,1).setBackground(QtGui.QColor(250, 0, 0, 150*-1*outcome))	
 
 
 		try:

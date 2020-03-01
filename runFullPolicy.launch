@@ -4,7 +4,7 @@
     
     <arg name="launch_prefix" if="$(arg debug)" default="gdb -ex run --args"/>
     <arg name="launch_prefix" unless="$(arg debug)" default=""/>
-    <arg name="policy_package" value="reward.pkl"/>
+    <arg name="policy_package" value="reward3.pkl"/>
 
     <arg name="joy_dev" default="/dev/input/js0
 "/>
