@@ -313,7 +313,8 @@ class SimulationWindow(QWidget):
 		self.go_btn.setStyleSheet("background-color: grey; color: white")
 		self.survey.close()
 		self.setEnabled(True)
-
+		self.no_btn.setEnabled(False)
+		
 	def make_connections(self): 
 		'''self.minimapView.mousePressEvent = lambda event:imageMousePress(event,self); 
 		self.minimapView.mouseMoveEvent = lambda event:imageMouseMove(event,self); 
