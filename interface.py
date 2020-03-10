@@ -199,14 +199,14 @@ class SimulationWindow(QWidget):
 		self.pushLayout.addWidget(self.no_btn,6,19,1,4); 
 		self.no_btn.setStyleSheet("background-color: grey; color: white")
 
-		self.info_btn = QPushButton('Explain',self)
+		'''self.info_btn = QPushButton('Explain',self)
 		self.info_btn.setEnabled(False)
 		self.pushLayout.addWidget(self.info_btn,7,19,1,4); 
-		self.info_btn.setStyleSheet("background-color: grey; color: white")
+		self.info_btn.setStyleSheet("background-color: grey; color: white")'''
 
 		self.prev_btn = QPushButton('Previous Traverse',self)
 		self.prev_btn.setEnabled(False)
-		self.pushLayout.addWidget(self.prev_btn,8,19,1,4); 
+		self.pushLayout.addWidget(self.prev_btn,7,19,1,4); 
 		self.prev_btn.setStyleSheet("background-color: grey; color: white")
 		
 
@@ -269,7 +269,7 @@ class SimulationWindow(QWidget):
 			self.table.clearSelection()
 		else:
 			self.table.selectRow(option)
-		'''self.planeFlushPaint(self.pathPlane)
+		self.redrawPaths()
 		x_tmp = []
 		y_tmp = []
 		tile_x = (float(self._dem.width())/20.0)/2
@@ -281,7 +281,7 @@ class SimulationWindow(QWidget):
 					x,y = self.convertToGridCoords(j,20,20)
 					x_tmp.append(int(float(x/20.0)*self._dem.width() + tile_x))
 					y_tmp.append(int(float(y/20.0)*self._dem.height() + tile_y))
-					self.planeAddPaint(self.pathPlane, 200, x_tmp, y_tmp, QColor(250,251,0,50)) '''
+				self.planeAddPaint(self.pathPlane, 200, x_tmp, y_tmp, QColor(250,251,0,50))
 
 	def operator_toast(self):
 		print "Opening a new popup window..."
@@ -505,11 +505,31 @@ class SimulationWindow(QWidget):
 					x,y = self.convertToGridCoords(j,20,20)
 					x_norm.append(int(float(x/20.0)*self._dem.width() + tile_x))
 					y_norm.append(int(float(y/20.0)*self._dem.height() + tile_y))
-					self.planeAddPaint(self.pathPlane, 200, x_norm, y_norm, QColor(0,251,0,5)) 
+				self.planeAddPaint(self.pathPlane, 200, x_norm, y_norm, QColor(0,251,0,5)) 
 					#print x, y
 
 		self.pathPlane.setZValue(2)
 
+	def redrawPaths(self):
+		self.planeFlushPaint(self.pathPlane)
+		tile_x = (float(self._dem.width())/20.0)/2
+		tile_y = (float(self._dem.height())/20.0)/2
+		memory = []
+		counter = 0
+		self.pathDict = {}
+		for i in self.paths:
+			x_norm = []
+			y_norm = []
+			counter = counter +1
+			if i not in memory:
+				self.pathDict[str(i.reward)] = (i.elements)
+				memory.append(i)
+				for j in i.elements:
+					x,y = self.convertToGridCoords(j,20,20)
+					x_norm.append(int(float(x/20.0)*self._dem.width() + tile_x))
+					y_norm.append(int(float(y/20.0)*self._dem.height() + tile_y))
+				self.planeAddPaint(self.pathPlane, 200, x_norm, y_norm, QColor(0,251,0,10)) 
+					#print x, y
 	def avg_paths(self):
 		band = self.max_reward*float(1.0/6.0)
 		first = []
