@@ -270,13 +270,13 @@ class SimulationWindow(QWidget):
 		else:
 			self.table.selectRow(option)
 		self.redrawPaths()
-		x_tmp = []
-		y_tmp = []
 		tile_x = (float(self._dem.width())/20.0)/2
 		tile_y = (float(self._dem.height())/20.0)/2
 		for i in self.pathDict.keys():
 			band = self.max_reward*float(1.0/6.0)*option
 			if int(i) > band:
+				x_tmp = []
+				y_tmp = []
 				for j in self.pathDict[i]:
 					x,y = self.convertToGridCoords(j,20,20)
 					x_tmp.append(int(float(x/20.0)*self._dem.width() + tile_x))
@@ -505,7 +505,7 @@ class SimulationWindow(QWidget):
 					x,y = self.convertToGridCoords(j,20,20)
 					x_norm.append(int(float(x/20.0)*self._dem.width() + tile_x))
 					y_norm.append(int(float(y/20.0)*self._dem.height() + tile_y))
-				self.planeAddPaint(self.pathPlane, 200, x_norm, y_norm, QColor(0,251,0,5)) 
+				self.planeAddPaint(self.pathPlane, 200, x_norm, y_norm, QColor(0,251,0,30)) 
 					#print x, y
 
 		self.pathPlane.setZValue(2)
@@ -528,7 +528,7 @@ class SimulationWindow(QWidget):
 					x,y = self.convertToGridCoords(j,20,20)
 					x_norm.append(int(float(x/20.0)*self._dem.width() + tile_x))
 					y_norm.append(int(float(y/20.0)*self._dem.height() + tile_y))
-				self.planeAddPaint(self.pathPlane, 200, x_norm, y_norm, QColor(0,251,0,10)) 
+				self.planeAddPaint(self.pathPlane, 200, x_norm, y_norm, QColor(211,211,211,30)) 
 					#print x, y
 	def avg_paths(self):
 		band = self.max_reward*float(1.0/6.0)
