@@ -48,7 +48,7 @@ class SurveyWidget(QtWidgets.QWidget):
 		self.msg = Survey()
 
 		self.q_list = [q1, q2, q3, q4, q5]
-		self.qs_list = ['How do you feel?', 'What is feeling?', 'Whats your GPA', 'Whats your major?', 'Whats your name']
+		self.qs_list = ['To what extent was the rover able to reach its destination?', 'To what extent do you feel you were able to predict the rovers performance from task to task?', 'To what extent could you rely on the rover to perform its job?', 'To what extent did the rover perform similarly in related tasks?', 'In future interaction, to what extent would you trust the rover?']
 		self.msg.questions = self.qs_list
 		self.s_list = [s1, s2, s3, s4, s5]
 		self.h_list = [hbox1,hbox2,hbox3,hbox4,hbox5]
