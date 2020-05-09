@@ -71,8 +71,14 @@ class SimulationWindow(QWidget):
 
 		self.make_connections();
 		self.showMaximized();
-		print 'Columns: ' + str(self.layout.columnCount())
-		print 'Rows: ' + str(self.layout.rowCount())
+
+		#Stop interfacing from stretching to accomodate widgets!
+		for i in range(1,self.layout.rowCount()):
+			self.layout.setRowStretch(i,1)
+		for i in range(1,self.layout.columnCount()):
+			self.layout.setColumnStretch(i,1)
+
+
 		self.setWindowState(Qt.WindowMaximized);
 		self.dem_sub = rospy.Subscriber('dem', Image, self.dem_cb)
 		self.steer_sub = rospy.Subscriber('current_steer', Steering, self.state_callback)
@@ -115,14 +121,11 @@ class SimulationWindow(QWidget):
 		#Minimap ---------------------------
 		self.minimapView = QGraphicsView(self); 
 		self.minimapScene = QGraphicsScene(self);
-		self.image =  QPixmap('images/DEM.png')
 
 
 		self.minimapView.setScene(self.minimapScene);
-		#self.minimapView.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-		#self.minimapView.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 		self.minimapView.setStyleSheet("background-color: beige; border: 4px inset grey;")
-		self.layout.addWidget(self.minimapView,1,1,2,8);
+		self.layout.addWidget(self.minimapView,1,1,8,9);
 
 
 		#Add circle ---------------------------------------------
@@ -140,7 +143,7 @@ class SimulationWindow(QWidget):
 
 		sliderLayout.addWidget(self.beliefOpacitySlider,0,0);
 
-		self.layout.addLayout(sliderLayout,9,1,1,8) 
+		self.layout.addLayout(sliderLayout,9,1,1,9) 
 
 		#----------------------------------------------
 		self.stateLayout = QGridLayout();
@@ -175,7 +178,7 @@ class SimulationWindow(QWidget):
 		self.stateLayout.addWidget(self.goal,11,1);
 		self.stateLayout.addWidget(self.timer,11,2); 
 		self.stateLayout.addWidget(self.score,12,2); 
-		self.layout.addWidget(stateGroup,10,1,1,8)
+		self.layout.addWidget(stateGroup,10,1,4,9)
 
 		#self.timer.setToolTip("Time remaining to make decision, at 0 there will be a penalty")
 		#self.timer.setStyleSheet("""QToolTip { background-color: black; color: white; border: black solid 1px }""")
@@ -226,7 +229,7 @@ class SimulationWindow(QWidget):
 
 
 		self.pushLayout.addWidget(self.table,5,16,3,1); 
-		self.layout.addWidget(goGroup,9,16,2,10)
+		self.layout.addWidget(goGroup,9,13,4,10)
 
 
 		#-----------------------------------------------------
@@ -238,7 +241,7 @@ class SimulationWindow(QWidget):
 		histGroup.setStyleSheet("QGroupBox {background-color: beige; border: 4px inset grey;}")
 		histGroup.setToolTip('Choose one of reward distribution bins')
 
-		self.layout.addWidget(histGroup, 1,17,2,8)
+		self.layout.addWidget(histGroup, 1,13,6,10)
 
 
 
@@ -404,8 +407,8 @@ class SimulationWindow(QWidget):
 		try:
 			goal = rospy.ServiceProxy('/policy/policy_server/GetMCSims', GetMCSims)
 			response = goal(id)
-
 			return response.rewards
+
 		except rospy.ServiceException, e:
 			print "Service call failed: %s"%e
 

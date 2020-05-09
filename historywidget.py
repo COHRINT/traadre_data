@@ -27,6 +27,12 @@ class HistoryWidget(QtWidgets.QWidget):
 		self.layout = QGridLayout()
 		self.pushLayout = QGridLayout();
 		self.setLayout(self.layout)
+
+		for i in range(1,self.layout.rowCount()):
+			self.layout.setRowStretch(i,1)
+		for i in range(1,self.layout.columnCount()):
+			self.layout.setColumnStretch(i,1)
+
 		self.demDownsample = 4
 		self.hazmapItem = None
 
@@ -44,9 +50,9 @@ class HistoryWidget(QtWidgets.QWidget):
 
 		Group.setStyleSheet("QGroupBox {background-color: beige; border: 4px inset grey;}")
 
-		self.submit_btn = QPushButton('Submit',self)
+		self.submit_btn = QPushButton('OK',self)
 		self.submit_btn.setStyleSheet(("background-color: green; color: white"))
-		self.pushLayout.addWidget(self.submit_btn,9,0,1,8); 
+		self.pushLayout.addWidget(self.submit_btn,9,0,2,5); 
 
 
 		self.layout.addWidget(Group,9,0,1,8)
@@ -91,14 +97,15 @@ class HistoryWidget(QtWidgets.QWidget):
 		image = QImage(self.grayDEM.reshape((self.h*self.w)), self.w, self.h, QImage.Format_Grayscale8)
 
 		self._dem = image       
-		self.pathPlane = self.minimapScene.addPixmap(self.makeTransparentPlane(self._dem.width(), self._dem.height()))
+
+		#-------------------
+
 		pixmap = QPixmap.fromImage(self._dem)
 		#pixmap = pixmap.scaled(self.sketchPlane.width(), self.sketchPlane.height())
 		self._dem_item = self.minimapScene.addPixmap(pixmap) #.scaled(self.w*100,self.h*100))
 		self._dem_item.setPos(QPointF(0, 0))
-		self.minimapScene.setSceneRect(0,0, self.w, self.h)
-		
 
+		#self.minimapScene.setSceneRect(0,0, self.w, self.h)
 		self.minimapView.fitInView(self.minimapScene.sceneRect())
 
 		self.hazmap_sub = rospy.Subscriber('hazmap', Image, self.hazmap_cb)
