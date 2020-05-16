@@ -86,6 +86,9 @@ class SimulationWindow(QWidget):
 		self.option_sub = rospy.Subscriber('option', OptionSelect, self.option_cb)
 		self.current_state_pub = rospy.Publisher('state', RobotState, queue_size=10)
 
+		self.bins_pub = rospy.Publisher('bins', Bins, queue_size=10)
+		self.bins_sub = rospy.Subscriber('bins', Bins, self.update_bins)
+
 		# self.populated = False
 
 		self.a = 255*.3
@@ -302,7 +305,7 @@ class SimulationWindow(QWidget):
 	def traverse_history(self):
 		print "Opening a new popup window..."
 		self.setEnabled(False)
-		self.trav_hist = HistoryWidget()
+		self.trav_hist = HistoryWidget(self._dem_item,self.hazmapItem)
 		self.trav_hist.setGeometry(QRect(100, 100, 800, 800))
 		self.trav_hist.submit_btn.clicked.connect(self.trav_submit)
 		self.trav_hist.show()
@@ -454,11 +457,10 @@ class SimulationWindow(QWidget):
 
 		#Histogram stuff
 		self.hist.canvas.ax.clear()
-		self.rewards = self.getRewards_client(self._goalID)	
+
 
 		mu = "%.1f" % np.mean(self.rewards)
 		std = "%.2f" % np.std(self.rewards)
-		self.max_reward = max(self.rewards)
 		samples = len(self.rewards)
 
 		self.hist.canvas.ax.set_xlabel('Accumulated Reward')
@@ -470,11 +472,11 @@ class SimulationWindow(QWidget):
 
 
 
-		self.hist.canvas.ax.axvline(x=self.max_reward*(1.0/float(self.num_options+1)), linestyle = '--', color = 'red')
-		self.hist.canvas.ax.axvline(x=self.max_reward*(2.0/float(self.num_options+1)), linestyle = '--', color = 'red')
-		self.hist.canvas.ax.axvline(x=self.max_reward*(3.0/float(self.num_options+1)), linestyle = '--', color = 'red')
-		self.hist.canvas.ax.axvline(x=self.max_reward*(4.0/float(self.num_options+1)), linestyle = '--', color = 'red')
-		self.hist.canvas.ax.axvline(x=self.max_reward*(5.0/float(self.num_options+1)), linestyle = '--', color = 'red')
+		self.hist.canvas.ax.axvline(x=self.bins[0], linestyle = '--', color = 'red')
+		self.hist.canvas.ax.axvline(x=self.bins[1], linestyle = '--', color = 'red')
+		self.hist.canvas.ax.axvline(x=self.bins[2], linestyle = '--', color = 'red')
+		self.hist.canvas.ax.axvline(x=self.bins[3], linestyle = '--', color = 'red')
+		self.hist.canvas.ax.axvline(x=self.bins[4], linestyle = '--', color = 'red')
 
 		self.hist.canvas.ax.set_title(r'Histogram of Potential Rewards: $\mu=$ ' + (mu) + r', $\sigma=$' + (std) + ', Samples used: ' + str(samples))
 		self.hist.canvas.draw()
@@ -644,25 +646,21 @@ class SimulationWindow(QWidget):
 			self.prev_btn.setEnabled(True)
 			self.prev_btn.setStyleSheet('background-color: green; color: white')
 
+
+
+		#bins
+		msg = Bins()
+		msg.goal = self._goalID
+		msg.bin1 = 250
+		msg.bin2 = 500
+		msg.bin3 = 1001
+		msg.bin4 = 1500
+		msg.bin5 = 2000
+		self.bins_pub.publish(msg)
+
 		self.makeHist()
 		self.draw_paths()
 		self.avg_paths()
-
-		
-		#Outcome Assessment
-		for i in range(1,self.table.rowCount()+1):
-			outcome = outcomeAssessment(np.array(self.rewards), self.max_reward*0.16*(i))
-			if outcome:
-				self.item_p = QTableWidgetItem(str("%.5f" % outcome))
-			else: 
-				self.item_p = QTableWidgetItem('N/A')
-			self.item_p.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
-			self.table.setItem(i-1, 1, self.item_p)
-			if outcome > 0:
-				self.table.item(i-1,1).setBackground(QtGui.QColor(0, 250, 0, 150*outcome))
-			else:
-				self.table.item(i-1,1).setBackground(QtGui.QColor(250, 0, 0, 150*-1*outcome))	
-
 
 		try:
 			#Update the label's text:
@@ -691,6 +689,32 @@ class SimulationWindow(QWidget):
 		except:
 			pass
 
+	def update_bins(self, msg):
+		self.rewards = self.getRewards_client(self._goalID)
+		self.max_reward = max(self.rewards)	
+
+		self.bins = [msg.bin1, msg.bin2, msg.bin3, msg.bin4, msg.bin5]
+		labels = {-1: 'Very Bad', -0.5: 'Bad', -0.1: 'Fair', 0.1: 'Good', 0.5 : 'Very good'}
+		outcome = []
+
+		#Outcome Assessment
+		for i in range(0,len(self.bins)):
+			outcome.append(outcomeAssessment(np.array(self.rewards), self.bins[i]))
+			if outcome[i]:
+				value = labels[max([x for x in labels.keys() if x <= outcome[i]])]
+				self.item_p = QTableWidgetItem(value)
+			else: 
+				self.item_p = QTableWidgetItem('N/A')
+			self.item_p.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+			self.table.setItem(i, 1, self.item_p)
+			if outcome[i] > 0:
+				self.table.item(i,1).setBackground(QtGui.QColor(0, 250, 0, 150*outcome[i]))
+			else:
+				self.table.item(i,1).setBackground(QtGui.QColor(250, 0, 0, 150*-1*outcome[i]))	
+
+		self.table.update()
+
+
 	def _update(self):
 		if self._dem_item:
 			self.minimapScene.removeItem(self._dem_item)
@@ -710,7 +734,7 @@ class SimulationWindow(QWidget):
 
 		#self.centerOn(self._dem_item)
 		#self.show()
-		bounds = self.minimapView.sceneRect()
+		bounds = self.minimapScene.sceneRect()
 		print 'Bounds:', bounds
 		#self.minimapView.setFixedSize(self.w, self.h)
 
