@@ -34,24 +34,37 @@ class SurveyWidget(QtWidgets.QWidget):
 		hbox3 = QtWidgets.QVBoxLayout()
 		hbox4 = QtWidgets.QVBoxLayout()
 		hbox5 = QtWidgets.QVBoxLayout()
+		hbox6 = QtWidgets.QVBoxLayout()
+		hbox7 = QtWidgets.QVBoxLayout()
+		hbox8 = QtWidgets.QVBoxLayout()
 		vbox = QtWidgets.QVBoxLayout()
 		s1  = QtWidgets.QSlider(Qt.Horizontal)
 		s2  = QtWidgets.QSlider(Qt.Horizontal)
 		s3  = QtWidgets.QSlider(Qt.Horizontal)
 		s4  = QtWidgets.QSlider(Qt.Horizontal)
 		s5  = QtWidgets.QSlider(Qt.Horizontal)
+		s6  = QtWidgets.QSlider(Qt.Horizontal)
+		s7  = QtWidgets.QSlider(Qt.Horizontal)
+		s8  = QtWidgets.QSlider(Qt.Horizontal)
 		q1 = QLabel()
 		q2 = QLabel()
 		q3 = QLabel()
 		q4 = QLabel()
 		q5 = QLabel()
+		q6 = QLabel()
+		q7 = QLabel()
+		q8 = QLabel()
 		self.msg = Survey()
 
-		self.q_list = [q1, q2, q3, q4, q5]
-		self.qs_list = ['To what extent was the rover able to reach its destination?', 'To what extent do you feel you were able to predict the rovers performance from task to task?', 'To what extent could you rely on the rover to perform its job?', 'To what extent did the rover perform similarly in related tasks?', 'In future interaction, to what extent would you trust the rover?']
+		self.q_list = [q1, q2, q3, q4, q5, q6, q7, q8]
+		self.qs_list = ['To what extent was the rover able to reach its destination?', \
+		'To what extent do you feel you were able to predict the rovers performance from task to task?', \
+		 'To what extent could you rely on the rover to perform its job?', 'To what extent did the rover perform similarly in related tasks?',\
+		  'To what extent do you agree with the following: The deliver truck is well designed.',  'To what extent do you agree with the following: In the future I would use like to use this rover to fulfill tasks.', \
+		   'In future interaction, to what extent would you trust the rover?',  'To what extent did you find the map useful?']
 		self.msg.questions = self.qs_list
-		self.s_list = [s1, s2, s3, s4, s5]
-		self.h_list = [hbox1,hbox2,hbox3,hbox4,hbox5]
+		self.s_list = [s1, s2, s3, s4, s5, s6, s7, s8]
+		self.h_list = [hbox1,hbox2,hbox3,hbox4,hbox5,hbox6,hbox7,hbox8]
 		for i in range(0,len(self.s_list)):
 			self.s_list[i].setMinimum(0)
 			self.s_list[i].setMaximum(5)

@@ -17,7 +17,7 @@ from cv_bridge import CvBridge, CvBridgeError
 
 
 class HistoryWidget(QtWidgets.QWidget):
-	def __init__(self, dem_item, hazmap_item):
+	def __init__(self, dem, hazmap):
 		QtWidgets.QWidget.__init__(self)   # Inherit from QWidget 
 		self.setWindowModality(3)
 		self.setWindowTitle('Previous Traverse Results')
@@ -35,6 +35,8 @@ class HistoryWidget(QtWidgets.QWidget):
 
 		self.demDownsample = 4
 		self.hazmapItem = None
+		self.h = 4097
+		self.w = 4097
 
 		self.minimapView = QGraphicsView(self); 
 		self.minimapScene = QGraphicsScene(self);
@@ -42,8 +44,68 @@ class HistoryWidget(QtWidgets.QWidget):
 		self.minimapView.setStyleSheet("background-color: beige; border: 4px inset grey;")
 
 
-		self.layout.addWidget(self.minimapView,1,0,3,8);
+		self.layout.addWidget(self.minimapView,1,0,4,7);
 
+
+
+		self._dem_item = self.minimapScene.addPixmap(dem)
+		self.hazmapItem = self.minimapScene.addPixmap(hazmap)
+		self.hazmapItem.setPos(QPointF(0, 0))
+		self._dem_item.setPos(QPointF(0, 0))
+
+		#print 'Translating by:', bounds.width()
+
+		htrans = QTransform()
+		dtrans = QTransform()
+		dtrans.scale(0.71,0.68)
+		htrans.scale(36,34.5)
+		self.hazmapItem.setTransform(htrans)
+		self._dem_item.setTransform(dtrans)
+		self.minimapView.setSceneRect(self.minimapScene.sceneRect())
+
+		#-------------------------------------------------------------------------
+		self.stateLayout = QGridLayout();
+
+		stateGroup = QGroupBox()
+		stateGroup.setLayout(self.stateLayout)
+
+		stateGroup.setStyleSheet("background-color: beige; border: 4px inset grey; font: 15pt Lato")
+		self.time_remaining = 120
+		self.current_score = 0
+
+		self.reward = QLabel()
+		self.reward.setStyleSheet("background-color: white")
+		self.oa = QLabel()
+		self.oa.setStyleSheet("background-color: white")
+		self.sq = QLabel()
+		self.sq.setStyleSheet("background-color: white")
+		self.timer = QLabel()
+		self.timer.setStyleSheet("background-color: white")
+		self.goal = QLabel()
+
+		self.goal.setStyleSheet("background-color: white")
+		self.score = QLabel()
+		self.score.setToolTip("Current score")
+		self.score.setStyleSheet("background-color: white")
+
+		self.oa.setText('Outcome: ')
+		self.sq.setText('Solver: ')
+		self.reward.setText('Accumulated Reward: ')
+		self.goal.setText('Goal: ')
+		self.timer.setText('Time Used: ' + str(self.time_remaining) + ' seconds')
+		self.score.setText('Score Achieved: ' + str(self.current_score))
+
+		self.stateLayout.addWidget(self.reward,12,1,1,1); 
+		self.stateLayout.addWidget(self.goal,11,1);
+		self.stateLayout.addWidget(self.timer,11,2); 
+		self.stateLayout.addWidget(self.score,12,2); 
+		self.stateLayout.addWidget(self.oa,13,1); 
+		self.stateLayout.addWidget(self.sq,13,2); 
+
+		self.layout.addWidget(stateGroup,10,0,4,7)
+
+		print self.layout.columnCount()
+		print self.layout.rowCount()
 		# Submit
 		Group = QGroupBox()
 		Group.setLayout(self.pushLayout)
@@ -52,16 +114,10 @@ class HistoryWidget(QtWidgets.QWidget):
 
 		self.submit_btn = QPushButton('OK',self)
 		self.submit_btn.setStyleSheet(("background-color: green; color: white"))
-		self.pushLayout.addWidget(self.submit_btn,9,0,2,5); 
+		self.pushLayout.addWidget(self.submit_btn,13,0,2,3); 
 
 
-		self.layout.addWidget(Group,9,0,1,8)
-
-		self.minimapScene.addItem(dem_item)
-		self.minimapScene.addItem(hazmap_item)
-		#self.dem_sub = rospy.Subscriber('dem', Image, self.dem_cb)
-		self.minimapView.fitInView(self.minimapScene.sceneRect())
-
+		self.layout.addWidget(Group,15,1,2,5)
 
 	def center(self):
 		'''Centers the window on the screen.'''
