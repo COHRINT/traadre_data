@@ -11,13 +11,14 @@ from traadre_msgs.srv import *
 from geometry_msgs.msg import *
 from sensor_msgs.msg import *
 import numpy as np
+import RobotIcon
 import cv2
 import copy
 from cv_bridge import CvBridge, CvBridgeError
 
 
 class HistoryWidget(QtWidgets.QWidget):
-	def __init__(self, dem, hazmap):
+	def __init__(self, dem, hazmap, time, goalID, goalLoc):
 		QtWidgets.QWidget.__init__(self)   # Inherit from QWidget 
 		self.setWindowModality(3)
 		self.setWindowTitle('Previous Traverse Results')
@@ -37,6 +38,7 @@ class HistoryWidget(QtWidgets.QWidget):
 		self.hazmapItem = None
 		self.h = 4097
 		self.w = 4097
+		self._colors = [(125, 0, 125), (68, 134, 252), (236, 228, 46), (102, 224, 18), (242, 156, 6), (240, 64, 10), (196, 30, 250)]
 
 		self.minimapView = QGraphicsView(self); 
 		self.minimapScene = QGraphicsScene(self);
@@ -70,7 +72,6 @@ class HistoryWidget(QtWidgets.QWidget):
 		stateGroup.setLayout(self.stateLayout)
 
 		stateGroup.setStyleSheet("background-color: beige; border: 4px inset grey; font: 15pt Lato")
-		self.time_remaining = 120
 		self.current_score = 0
 
 		self.reward = QLabel()
@@ -91,8 +92,8 @@ class HistoryWidget(QtWidgets.QWidget):
 		self.oa.setText('Outcome: ')
 		self.sq.setText('Solver: ')
 		self.reward.setText('Accumulated Reward: ')
-		self.goal.setText('Goal: ')
-		self.timer.setText('Time Used: ' + str(self.time_remaining) + ' seconds')
+		self.goal.setText('Goal: '+ goalID)
+		self.timer.setText('Time Remaining: ' + str(time) + ' seconds')
 		self.score.setText('Score Achieved: ' + str(self.current_score))
 
 		self.stateLayout.addWidget(self.reward,12,1,1,1); 
@@ -104,8 +105,6 @@ class HistoryWidget(QtWidgets.QWidget):
 
 		self.layout.addWidget(stateGroup,10,0,4,7)
 
-		print self.layout.columnCount()
-		print self.layout.rowCount()
 		# Submit
 		Group = QGroupBox()
 		Group.setLayout(self.pushLayout)
@@ -119,11 +118,42 @@ class HistoryWidget(QtWidgets.QWidget):
 
 		self.layout.addWidget(Group,15,1,2,5)
 
+		#------------------------------
+		self.drawLetter(goalID,goalLoc)
+
 	def center(self):
 		'''Centers the window on the screen.'''
 		resolution = QtWidgets.QDesktopWidget().screenGeometry()
 		self.move((resolution.width()),
 				  (resolution.height())) 
+
+	def drawLetter(self,goalID,goalLoc):
+		self.gworld = [0,0]
+
+		thisGoal = RobotIcon.RobotWidget(str(goalID), QColor(self._colors[1][0], self._colors[1][1], self._colors[1][2]))
+		thisGoal.setFont(QFont("SansSerif", max(1300 / 36.0,3), QFont.Bold))
+		thisGoal.setBrush(QBrush(QColor(self._colors[1][0], self._colors[1][1], self._colors[1][2])))          
+		self._goalIcon = thisGoal
+		self.minimapScene.addItem(self._goalIcon)
+
+		#Update the label's text:
+		self._goalIcon.setText(str(goalID))
+		#Pick up the world coordinates
+		self._goalLocations = [goalLoc.x, goalLoc.y]
+
+		world = list(copy.deepcopy(self._goalLocations))
+
+		iconBounds = self._goalIcon.boundingRect()
+
+		world[0] = (world[0]/self.w)*self.minimapScene.width()
+		world[1] = (world[1]/self.h)*self.minimapScene.height()
+		
+		#Adjust the world coords so that the icon is centered on the goal
+		self.gworld[0] = (world[0])- iconBounds.width()/2 
+		self.gworld[1] = (world[1])- iconBounds.height()/2 #mirror the y coord
+
+		self._goalIcon.setPos(QPointF(self.gworld[0], self.gworld[1]))
+
 
 
 	def makeTransparentPlane(self, width, height):

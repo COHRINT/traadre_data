@@ -297,6 +297,7 @@ class SimulationWindow(QWidget):
 	def operator_toast(self):
 		print "Opening a new popup window..."
 		self.setEnabled(False)
+		self.shotClock.stop()
 		self.survey = SurveyWidget()
 		self.survey.setGeometry(QRect(100, 100, 800, 800))
 		self.survey.submit_btn.clicked.connect(self.survey_submit)
@@ -305,11 +306,18 @@ class SimulationWindow(QWidget):
 	def traverse_history(self):
 		print "Opening a new popup window..."
 		self.setEnabled(False)
-		self.trav_hist = HistoryWidget(self._dem_item,self.hazmapItem)
-		self.trav_hist.setGeometry(QRect(100, 100, 800, 800))
+		dem = self._dem_item.pixmap()
+		haz = self.hazmapItem.pixmap()
+		time = self.prev_time_remaining
+		goalID = self.allGoals[self.count-1][0]
+
+		goalLoc = self.allGoals[self.count-1][1]
+		
+
+		self.trav_hist = HistoryWidget(dem,haz,time,goalID,goalLoc)
+		self.trav_hist.setGeometry(QRect(100, 100, 1000, 1000))
 		self.trav_hist.submit_btn.clicked.connect(self.trav_submit)
 		self.trav_hist.show()
-
 
 	def trav_submit(self):
 		self.trav_hist.close()
@@ -317,8 +325,11 @@ class SimulationWindow(QWidget):
 
 	def survey_submit(self):
 		self.paths = None
+		self.prev_time_remaining = self.time_remaining
+
 		self.time_remaining = 120
 		self.timer.setText('Time Remaining: ' + str(self.time_remaining) + ' seconds')
+		self.shotClock.start(1000)
 		self.count = self.count +1
 		self.buildTable()
 		self.go_btn.setEnabled(False)
@@ -326,6 +337,7 @@ class SimulationWindow(QWidget):
 		self.survey.close()
 		self.setEnabled(True)
 		self.no_btn.setEnabled(False)
+		self.no_btn.setStyleSheet("background-color: grey; color: white")
 		
 	def make_connections(self): 
 		'''self.minimapView.mousePressEvent = lambda event:imageMousePress(event,self); 
@@ -651,11 +663,11 @@ class SimulationWindow(QWidget):
 		#bins
 		msg = Bins()
 		msg.goal = self._goalID
-		msg.bin1 = 250
-		msg.bin2 = 500
-		msg.bin3 = 1001
-		msg.bin4 = 1500
-		msg.bin5 = 2000
+		msg.bin1 = 1000
+		msg.bin2 = 1500
+		msg.bin3 = 2000
+		msg.bin4 = 3000
+		msg.bin5 = 4500
 		self.bins_pub.publish(msg)
 
 		self.makeHist()
@@ -707,10 +719,12 @@ class SimulationWindow(QWidget):
 				self.item_p = QTableWidgetItem('N/A')
 			self.item_p.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
 			self.table.setItem(i, 1, self.item_p)
-			if outcome[i] > 0:
+			if outcome[i] > 0 and outcome[i] != None:
 				self.table.item(i,1).setBackground(QtGui.QColor(0, 250, 0, 150*outcome[i]))
-			else:
+			elif outcome[i] < 0 and outcome[i] != None:
 				self.table.item(i,1).setBackground(QtGui.QColor(250, 0, 0, 150*-1*outcome[i]))	
+			else:
+				pass
 
 		self.table.update()
 
@@ -820,7 +834,6 @@ class SimulationWindow(QWidget):
 		self.hazmapItem.setPos(QPointF(0, 0))
 		trans = QTransform()
 		#print 'Translating by:', bounds.width()
-		
 		trans.scale(self.w/hazTrans.width(),self.h/hazTrans.height())
 		#trans.translate(0, -bounds.height())
 		self.hazmapItem.setTransform(trans)
