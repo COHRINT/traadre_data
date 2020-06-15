@@ -7,6 +7,7 @@ from PyQt5.QtGui import *;
 from PyQt5.QtCore import *;
 import rospy
 from traadre_msgs.msg import *
+from label_slider import LabeledSlider
 
 class SurveyWidget(QtWidgets.QWidget):
 	def __init__(self, parent=None):

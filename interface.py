@@ -312,9 +312,11 @@ class SimulationWindow(QWidget):
 		goalID = self.allGoals[self.count-1][0]
 
 		goalLoc = self.allGoals[self.count-1][1]
+
+		actions,reward = self.getResults_client(goalID)
 		
 
-		self.trav_hist = HistoryWidget(dem,haz,time,goalID,goalLoc)
+		self.trav_hist = HistoryWidget(dem,haz,time,goalID,goalLoc,actions,reward)
 		self.trav_hist.setGeometry(QRect(100, 100, 1000, 1000))
 		self.trav_hist.submit_btn.clicked.connect(self.trav_submit)
 		self.trav_hist.show()
@@ -436,6 +438,14 @@ class SimulationWindow(QWidget):
 		except rospy.ServiceException, e:
 			print "Service call failed: %s"%e
 
+	def getResults_client(self, id):
+		try:
+			goal = rospy.ServiceProxy('/policy/policy_server/GetResults', GetResults)
+			response = goal(id)
+
+			return response.actions, response.reward
+		except rospy.ServiceException, e:
+			print "Service call failed: %s"%e
 
 	def setCurrentGoal_client(self,id):
 		try:

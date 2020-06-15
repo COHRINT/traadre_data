@@ -22,11 +22,9 @@ class MplWidget(QtWidgets.QWidget):
 		self.setLayout(self.vbl)
 
 
-
-
 class MplCanvas(Canvas):
 		def __init__(self):
-
+			self.bins_sub = rospy.Subscriber('bins', Bins, self.update_bins)
 			def onclick(event):
 				msg = OptionSelect()
 				'''print('%s click: button=%d, x=%d, y=%d, xdata=%f, ydata=%f' %
@@ -35,12 +33,12 @@ class MplCanvas(Canvas):
 
 				self.rewards = self.getRewards_client((self._goal))
 				max_reward = max(self.rewards)
-				width = max_reward*float(1.0/6.0)
+				width = max_reward
 				location = 0
 				if event.xdata:
 					ax_min, ax_max = event.canvas.ax.get_xlim()
 					event.canvas.ax.set_xlim([0,ax_max])
-					location = math.floor(event.xdata/width) +1 
+					location = min([x for x in self.bins if event.xdata <= x])
 
 				try:
 					self.span.remove()
@@ -75,6 +73,9 @@ class MplCanvas(Canvas):
 			cid = self.fig.canvas.mpl_connect('button_press_event', onclick)
 			self.goal_sub = rospy.Subscriber('current_goal', NamedGoal, self.goal_cb)
 			self.option_pub = rospy.Publisher('option', OptionSelect, queue_size=10)
+
+		def update_bins(self, msg):
+			self.bins = [msg.bin1, msg.bin2, msg.bin3, msg.bin4, msg.bin5]
 
 		def goal_cb(self, msg):
 			 #Resolve the odometry to a screen coordinate for display
