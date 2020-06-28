@@ -18,7 +18,7 @@ from cv_bridge import CvBridge, CvBridgeError
 
 
 class HistoryWidget(QtWidgets.QWidget):
-	def __init__(self, dem, hazmap, time, goalID, goalLoc, actions, reward):
+	def __init__(self, dem, hazmap, time, goalID, goalLoc, actions, reward, result):
 		QtWidgets.QWidget.__init__(self)   # Inherit from QWidget 
 		self.setWindowModality(3)
 		self.setWindowTitle('Previous Traverse Results')
@@ -94,7 +94,7 @@ class HistoryWidget(QtWidgets.QWidget):
 		self.reward.setText('Accumulated Reward: ' + str(int(reward)))
 		self.goal.setText('Goal: '+ goalID)
 		self.timer.setText('Time Remaining: ' + str(time) + ' seconds')
-		self.score.setText('Score Achieved: ' + str(self.current_score))
+		self.score.setText('Score Earned: ' + str(self.current_score))
 
 		self.stateLayout.addWidget(self.reward,12,1,1,1); 
 		self.stateLayout.addWidget(self.goal,11,1);
@@ -121,7 +121,7 @@ class HistoryWidget(QtWidgets.QWidget):
 		#------------------------------
 		self.drawLetter(goalID,goalLoc)
 		self.pathPlane = self.minimapScene.addPixmap(self.makeTransparentPlane(self.minimapScene.width(), self.minimapScene.height()))
-		self.draw_paths(actions)
+		self.draw_paths(actions,result)
 
 	def center(self):
 		'''Centers the window on the screen.'''
@@ -163,20 +163,22 @@ class HistoryWidget(QtWidgets.QWidget):
 		testMap.fill(QColor(0,0,0,0)); 
 		return testMap; 
 
-	def draw_paths(self, actions):
+	def draw_paths(self, actions, result):
 		self.planeFlushPaint(self.pathPlane)
 		tile_x = (float(self.minimapScene.width())/20.0)/2
 		tile_y = (float(self.minimapScene.height())/20.0)/2
 		counter = 0
 		x_norm = []
 		y_norm = []
-		print actions
 
 		for j in actions:
 			x,y = self.convertToGridCoords(j,20,20)
 			x_norm.append(int(float(x/20.0)*self.minimapScene.width() + tile_x))
 			y_norm.append(int(float(y/20.0)*self.minimapScene.height() + tile_y))
-		self.planeAddPaint(self.pathPlane, 200, x_norm, y_norm, QColor(0,251,0,30)) 
+		if result == 1:
+			self.planeAddPaint(self.pathPlane, 200, x_norm, y_norm, QColor(0,251,0,60))
+		else:  
+			self.planeAddPaint(self.pathPlane, 200, x_norm, y_norm, QColor(251,0,0,60))
 					#print x, y
 
 		self.pathPlane.setZValue(2)

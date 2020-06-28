@@ -86,8 +86,7 @@ class SimulationWindow(QWidget):
 		self.option_sub = rospy.Subscriber('option', OptionSelect, self.option_cb)
 		self.current_state_pub = rospy.Publisher('state', RobotState, queue_size=10)
 
-		self.bins_pub = rospy.Publisher('bins', Bins, queue_size=10)
-		self.bins_sub = rospy.Subscriber('bins', Bins, self.update_bins)
+
 
 		# self.populated = False
 
@@ -223,7 +222,7 @@ class SimulationWindow(QWidget):
 		#--------------------------------------------------------------------
 		self.table = QTableWidget(self.num_options,6,self)
 
-		self.table.setHorizontalHeaderLabels(('Toggle', 'Outcome', 'Solver','Reward','Fuel Cost', 'Avg. Tiles'))
+		self.table.setHorizontalHeaderLabels(('Toggle', 'Outcome', 'Solver','# of samples','Avg. Reward', 'Avg. Tiles'))
 		self.table.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 		self.table.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 		self.table.setStyleSheet("background-color: rgb(192,192,192)")
@@ -279,10 +278,10 @@ class SimulationWindow(QWidget):
 			self.draw_paths()
 		else:
 
-			self.table.selectRow(option)
+			self.table.selectRow(option+1)
 			self.redrawPaths()
 			for i in self.pathDict.keys():
-				band = self.max_reward*float(1.0/6.0)*option
+				band = self.bins[option+1]
 				if int(i) > band:
 					x_tmp = []
 					y_tmp = []
@@ -313,10 +312,10 @@ class SimulationWindow(QWidget):
 
 		goalLoc = self.allGoals[self.count-1][1]
 
-		actions,reward = self.getResults_client(goalID)
-		
+		actions,reward,result= self.getResults_client(goalID)
 
-		self.trav_hist = HistoryWidget(dem,haz,time,goalID,goalLoc,actions,reward)
+
+		self.trav_hist = HistoryWidget(dem,haz,time,goalID,goalLoc,actions,reward,result)
 		self.trav_hist.setGeometry(QRect(100, 100, 1000, 1000))
 		self.trav_hist.submit_btn.clicked.connect(self.trav_submit)
 		self.trav_hist.show()
@@ -333,6 +332,7 @@ class SimulationWindow(QWidget):
 		self.timer.setText('Time Remaining: ' + str(self.time_remaining) + ' seconds')
 		self.shotClock.start(1000)
 		self.count = self.count +1
+		self.goals_changed.emit()
 		self.buildTable()
 		self.go_btn.setEnabled(False)
 		self.go_btn.setStyleSheet("background-color: grey; color: white")
@@ -377,7 +377,7 @@ class SimulationWindow(QWidget):
 			self.no_btn.setStyleSheet("background-color: grey; color: white")
 
 	def buildTable(self):
-		self.goals_changed.emit()
+
 
 		cb1  = QtWidgets.QCheckBox( parent=self.table )
 		cb2  = QtWidgets.QCheckBox( parent=self.table )
@@ -443,7 +443,17 @@ class SimulationWindow(QWidget):
 			goal = rospy.ServiceProxy('/policy/policy_server/GetResults', GetResults)
 			response = goal(id)
 
-			return response.actions, response.reward
+			return response.actions, response.reward, response.result
+		except rospy.ServiceException, e:
+			print "Service call failed: %s"%e
+
+	def getBins_client(self, id):
+		try:
+			goal = rospy.ServiceProxy('/policy/policy_server/Bins', Bins)
+			response = goal(id)
+
+
+			return response.bins
 		except rospy.ServiceException, e:
 			print "Service call failed: %s"%e
 
@@ -468,14 +478,15 @@ class SimulationWindow(QWidget):
 		#self.location_update.emit(self.worldX, self.worldY, self.worldYaw, self._robotFuel)
 
 	def makeHist(self):
-		if self.count == 0:
-			self.hist = MplWidget()
-			self.hist.setStyleSheet("MplWidget {background-color: white; border: 4px inset grey;}")
+		if self.count != 0:
+			self.histLayout.removeWidget(self.hist)
+		self.hist = MplWidget(self.bins)
+		self.hist.setStyleSheet("MplWidget {background-color: white; border: 4px inset grey;}")
 
 
-			self.hist.canvas.draw()
+		self.hist.canvas.draw()
 
-			self.histLayout.addWidget(self.hist)
+		self.histLayout.addWidget(self.hist)
 
 		#Histogram stuff
 		self.hist.canvas.ax.clear()
@@ -493,12 +504,9 @@ class SimulationWindow(QWidget):
 		self.hist.canvas.ax.hist(self.rewards, 50)
 
 
+		for i in range(0,len(self.bins)):
+			self.hist.canvas.ax.axvline(x=self.bins[i], linestyle = '--', color = 'red')
 
-		self.hist.canvas.ax.axvline(x=self.bins[0], linestyle = '--', color = 'red')
-		self.hist.canvas.ax.axvline(x=self.bins[1], linestyle = '--', color = 'red')
-		self.hist.canvas.ax.axvline(x=self.bins[2], linestyle = '--', color = 'red')
-		self.hist.canvas.ax.axvline(x=self.bins[3], linestyle = '--', color = 'red')
-		self.hist.canvas.ax.axvline(x=self.bins[4], linestyle = '--', color = 'red')
 
 		self.hist.canvas.ax.set_title(r'Histogram of Potential Rewards: $\mu=$ ' + (mu) + r', $\sigma=$' + (std) + ', Samples used: ' + str(samples))
 		self.hist.canvas.draw()
@@ -557,7 +565,6 @@ class SimulationWindow(QWidget):
 			self.planeAddPaint(self.pathPlane, 200, x_norm, y_norm, QColor(211,211,211,30)) 
 					#print x, y
 	def avg_paths(self):
-		band = self.max_reward*float(1.0/6.0)
 		first = []
 		sec = []
 		thir = []
@@ -565,15 +572,15 @@ class SimulationWindow(QWidget):
 		fifth = []
 		lengths = []
 		for i in self.pathDict.keys():
-			if int(i) > band:
+			if int(i) > self.bins[0]:
 				first.append(len(self.pathDict[i]))
-			if int(i) > 2*band:
+			if int(i) > self.bins[1]:
 				sec.append(len(self.pathDict[i]))
-			if int(i) > 3*band:
+			if int(i) > self.bins[2]:
 				thir.append(len(self.pathDict[i]))
-			if int(i) > 4*band:
+			if int(i) > self.bins[3]:
 				four.append(len(self.pathDict[i]))
-			if int(i) > 5*band:
+			if int(i) > self.bins[4]:
 				fifth.append(len(self.pathDict[i]))
 		lengths = [first, sec, thir, four, fifth]
 		for i in range(self.num_options): 
@@ -669,20 +676,14 @@ class SimulationWindow(QWidget):
 			self.prev_btn.setStyleSheet('background-color: green; color: white')
 
 
+		self.bins = self.getBins_client(self._goalID)
 
-		#bins
-		msg = Bins()
-		msg.goal = self._goalID
-		msg.bin1 = 1000
-		msg.bin2 = 1500
-		msg.bin3 = 2000
-		msg.bin4 = 3000
-		msg.bin5 = 4500
-		self.bins_pub.publish(msg)
-
+		self.buildTable()
+		self.update_bins()
 		self.makeHist()
 		self.draw_paths()
 		self.avg_paths()
+
 
 		try:
 			#Update the label's text:
@@ -711,16 +712,16 @@ class SimulationWindow(QWidget):
 		except:
 			pass
 
-	def update_bins(self, msg):
+	def update_bins(self):
 		self.rewards = self.getRewards_client(self._goalID)
 		self.max_reward = max(self.rewards)	
 
-		self.bins = [msg.bin1, msg.bin2, msg.bin3, msg.bin4, msg.bin5]
+
 		labels = {-1: 'Very Bad', -0.5: 'Bad', -0.1: 'Fair', 0.1: 'Good', 0.5 : 'Very good'}
 		outcome = []
 
 		#Outcome Assessment
-		for i in range(0,len(self.bins)):
+		for i in range(0,len((self.bins))):
 			outcome.append(outcomeAssessment(np.array(self.rewards), self.bins[i]))
 			if outcome[i]:
 				value = labels[max([x for x in labels.keys() if x <= outcome[i]])]
@@ -769,7 +770,7 @@ class SimulationWindow(QWidget):
 		self.goal_titles, self.row = self.getGoals_client()
 
 
-		self.buildTable()
+		self.goals_changed.emit()
 		self.beliefOpacitySlider.valueChanged.connect(self.sliderChanged);
 		self.shotClock.start(1000) 
 
