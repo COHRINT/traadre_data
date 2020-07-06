@@ -196,42 +196,53 @@ class SimulationWindow(QWidget):
 
 		self.go_btn = QPushButton('Go',self)
 		self.go_btn.setEnabled(False)
-		self.pushLayout.addWidget(self.go_btn,5,19,1,4); 
+		self.pushLayout.addWidget(self.go_btn,5,10,2,4); 
 		self.go_btn.setStyleSheet("background-color: grey; color: white")
+		self.go_btn.setFont(QtGui.QFont('Lato', 12))
 
 		self.no_btn = QPushButton('No Go',self)
 		self.no_btn.setEnabled(False)
-		self.pushLayout.addWidget(self.no_btn,6,19,1,4); 
+		self.pushLayout.addWidget(self.no_btn,7,10,2,4); 
 		self.no_btn.setStyleSheet("background-color: grey; color: white")
-
-		'''self.info_btn = QPushButton('Explain',self)
-		self.info_btn.setEnabled(False)
-		self.pushLayout.addWidget(self.info_btn,7,19,1,4); 
-		self.info_btn.setStyleSheet("background-color: grey; color: white")'''
+		self.no_btn.setFont(QtGui.QFont('Lato', 12))
 
 		self.prev_btn = QPushButton('Previous Traverse',self)
 		self.prev_btn.setEnabled(False)
-		self.pushLayout.addWidget(self.prev_btn,7,19,1,4); 
+		self.pushLayout.addWidget(self.prev_btn,9,10,2,4); 
 		self.prev_btn.setStyleSheet("background-color: grey; color: white")
+		self.prev_btn.setFont(QtGui.QFont('Lato', 12))
 		
+		self.sq_label = QLabel()
+		self.sq = None
+		self.sq_label.setText('Solver Quality: ' + str(self.sq))
+		self.pushLayout.addWidget(self.sq_label,9,2,1,4)
+		self.sq_label.setStyleSheet("background-color: white; border: 4px inset grey;")
+		self.sq_label.setFont(QtGui.QFont('Lato', 15))
+
 
 		self.go_btn.clicked.connect(self.operator_toast)
 		self.no_btn.clicked.connect(self.operator_toast)
 		self.prev_btn.clicked.connect(self.traverse_history)
 
 		#--------------------------------------------------------------------
-		self.table = QTableWidget(self.num_options,6,self)
+		self.table = QTableWidget(self.num_options,5,self)
 
-		self.table.setHorizontalHeaderLabels(('Toggle', 'Outcome', 'Solver','# of samples','Avg. Reward', 'Avg. Tiles'))
+		self.table.setFont(QtGui.QFont('Lato', 12))
+		self.table.horizontalHeader().setFont(QtGui.QFont('Lato', 12))
+		self.table.verticalHeader().setFont(QtGui.QFont('Lato', 12))
+		self.table.setHorizontalHeaderLabels(('Span', 'Outcome Assessment','% of Samples','Min. Reward', 'Avg. Steps'))
 		self.table.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 		self.table.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 		self.table.setStyleSheet("background-color: rgb(192,192,192)")
-		self.table.setMaximumWidth(self.table.horizontalHeader().length()+25)
-		self.table.setMaximumHeight(self.table.verticalHeader().length()+25)
+		self.table.setMaximumWidth(self.table.horizontalHeader().length()+10)
+		self.table.setMaximumHeight(self.table.verticalHeader().length()+31)
+		#self.table.setSizePolicy(QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Expanding))
+		self.table.resizeColumnsToContents()
+		#self.table.resizeRowsToContents()
 
 
-		self.pushLayout.addWidget(self.table,5,16,3,1); 
-		self.layout.addWidget(goGroup,9,13,4,10)
+		self.pushLayout.addWidget(self.table,5,1,6,8,Qt.AlignTop); 
+		self.layout.addWidget(goGroup,10,11,4,12)
 
 
 		#-----------------------------------------------------
@@ -243,7 +254,7 @@ class SimulationWindow(QWidget):
 		histGroup.setStyleSheet("QGroupBox {background-color: beige; border: 4px inset grey;}")
 		histGroup.setToolTip('Choose one of reward distribution bins')
 
-		self.layout.addWidget(histGroup, 1,13,6,10)
+		self.layout.addWidget(histGroup, 1,11,8,12)
 
 
 
@@ -280,16 +291,18 @@ class SimulationWindow(QWidget):
 
 			self.table.selectRow(option+1)
 			self.redrawPaths()
-			for i in self.pathDict.keys():
-				band = self.bins[option+1]
-				if int(i) > band:
+			band = self.bins[option+1]
+
+			for i in self.paths:
+				if i.reward >= (band):
 					x_tmp = []
 					y_tmp = []
-					for j in self.pathDict[i]:
+					for j in i.elements:
 						x,y = self.convertToGridCoords(j,20,20)
 						x_tmp.append(int(float(x/20.0)*self._dem.width() + tile_x))
 						y_tmp.append(int(float(y/20.0)*self._dem.height() + tile_y))
 					self.planeAddPaint(self.pathPlane, 200, x_tmp, y_tmp, QColor(250,251,0,50))
+
 
 
 
@@ -378,7 +391,6 @@ class SimulationWindow(QWidget):
 
 	def buildTable(self):
 
-
 		cb1  = QtWidgets.QCheckBox( parent=self.table )
 		cb2  = QtWidgets.QCheckBox( parent=self.table )
 		cb3  = QtWidgets.QCheckBox( parent=self.table )
@@ -394,18 +406,13 @@ class SimulationWindow(QWidget):
 
 			self.item_p = QTableWidgetItem(str(0))
 			item_q = QTableWidgetItem(str(0.0))
-			self.table.setToolTip('Choose one of the navigation options')
-			item_reward = QTableWidgetItem(str(50))
-			item_fuel = QTableWidgetItem(str(100 + 10*i))
+			self.table.setToolTip('Investigate the distribution of potential outcomes')
 			
 			item_q.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
-			item_reward.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
-			item_fuel.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
 
 			self.table.setCellWidget(i,0, self.cb_list[i])
 			self.table.setItem(i, 2, item_q)
-			self.table.setItem(i, 3, item_reward)
-			self.table.setItem(i, 4, item_fuel)
+
 
 		#self.table.resizeColumnsToContents()
 
@@ -535,6 +542,7 @@ class SimulationWindow(QWidget):
 		tile_y = (float(self._dem.height())/20.0)/2
 		counter = 0
 		self.pathDict = {}
+
 		for i in self.paths:
 			x_norm = []
 			y_norm = []
@@ -571,6 +579,7 @@ class SimulationWindow(QWidget):
 		four = []
 		fifth = []
 		lengths = []
+
 		for i in self.pathDict.keys():
 			if int(i) > self.bins[0]:
 				first.append(len(self.pathDict[i]))
@@ -584,9 +593,37 @@ class SimulationWindow(QWidget):
 				fifth.append(len(self.pathDict[i]))
 		lengths = [first, sec, thir, four, fifth]
 		for i in range(self.num_options): 
-			value = QTableWidgetItem("%.2f" % np.mean(lengths[i]))
-			value.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
-			self.table.setItem(i, 5, value)
+			tiles = QTableWidgetItem("%.2f" % np.mean(lengths[i]))
+			tiles.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+			self.table.setItem(i, 5, tiles)
+
+	def count_rewards(self):
+		first = []
+		sec = []
+		thir = []
+		four = []
+		fifth = []
+		lengths = []
+
+		for i in range(0,len(self.rewards)):
+			if self.rewards[i] > self.bins[0]:
+				first.append(self.rewards[i])
+			if self.rewards[i] > self.bins[1]:
+				sec.append(self.rewards[i])
+			if self.rewards[i] > self.bins[2]:
+				thir.append(self.rewards[i])
+			if self.rewards[i] > self.bins[3]:
+				four.append(self.rewards[i])
+			if self.rewards[i] > self.bins[4]:
+				fifth.append(self.rewards[i])
+		lengths = [first, sec, thir, four, fifth]
+		for i in range(self.num_options): 
+			traces = QTableWidgetItem(str(int(float(len(lengths[i]))/float((len(self.rewards)))*100)) + '%')
+			avg = QTableWidgetItem(str(int(self.bins[i])))
+			traces.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+			avg.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+			self.table.setItem(i, 3, traces)
+			self.table.setItem(i, 4, avg)
 
 	def convertToGridCoords(self,i, width, height):
 		y = i//width
@@ -683,6 +720,7 @@ class SimulationWindow(QWidget):
 		self.makeHist()
 		self.draw_paths()
 		self.avg_paths()
+		self.count_rewards()
 
 
 		try:
@@ -716,7 +754,6 @@ class SimulationWindow(QWidget):
 		self.rewards = self.getRewards_client(self._goalID)
 		self.max_reward = max(self.rewards)	
 
-
 		labels = {-1: 'Very Bad', -0.5: 'Bad', -0.1: 'Fair', 0.1: 'Good', 0.5 : 'Very good'}
 		outcome = []
 
@@ -727,7 +764,7 @@ class SimulationWindow(QWidget):
 				value = labels[max([x for x in labels.keys() if x <= outcome[i]])]
 				self.item_p = QTableWidgetItem(value)
 			else: 
-				self.item_p = QTableWidgetItem('N/A')
+				self.item_p = QTableWidgetItem('Guarenteed')
 			self.item_p.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
 			self.table.setItem(i, 1, self.item_p)
 			if outcome[i] > 0 and outcome[i] != None:
