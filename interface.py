@@ -15,6 +15,7 @@ from traadre_msgs.msg import *
 from traadre_msgs.srv import *
 from geometry_msgs.msg import *
 from sensor_msgs.msg import *
+from OA import *
 
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
@@ -30,17 +31,6 @@ from mplwidget import MplWidget
 from surveywidget import SurveyWidget
 from historywidget import HistoryWidget
 
-def outcomeAssessment(samples, R_inf):
-	L_samples=np.unique(np.where(samples<R_inf))
-	U_samples=np.unique(np.where(samples>R_inf))
-	if not L_samples.any():
-		return None
-	samples=list(samples)
-	LPM=sum([float(samples[x]*samples.count(samples[x]))/float(len(samples)) for x in L_samples])
-	UPM=sum([float(samples[x]*samples.count(samples[x]))/float(len(samples)) for x in U_samples])
-	xO=(float(2)/(1+np.exp(-np.log(float(UPM)/float(LPM)))))-1
-
-	return xO
 
 class SimulationWindow(QWidget):
 	sketch = pyqtSignal()
@@ -53,6 +43,7 @@ class SimulationWindow(QWidget):
 	rightClick = pyqtSignal(int,int)
 	option_changed = pyqtSignal(int, bool)
 	state = pyqtSignal(int,int)
+	buttonClicked = pyqtSignal(int)
 
 	def __init__(self):
 
@@ -68,8 +59,6 @@ class SimulationWindow(QWidget):
 		self.populateInterface(); 
 		self.populated = True
 
-
-		self.make_connections();
 		self.showMaximized();
 
 		#Stop interfacing from stretching to accomodate widgets!
@@ -84,6 +73,7 @@ class SimulationWindow(QWidget):
 		self.steer_sub = rospy.Subscriber('current_steer', Steering, self.state_callback)
 		self.goal_sub = rospy.Subscriber('current_goal', NamedGoal, self.goal_cb)
 		self.option_sub = rospy.Subscriber('option', OptionSelect, self.option_cb)
+		self.option_pub = rospy.Publisher('option', OptionSelect, queue_size=10)
 		self.current_state_pub = rospy.Publisher('state', RobotState, queue_size=10)
 
 
@@ -107,6 +97,7 @@ class SimulationWindow(QWidget):
 		self.hazmap_changed.connect(self._updateHazmap)
 		self.robot_odom_changed.connect(self._updateRobot)
 		self.option_changed.connect(self._updateOption)
+		self.buttonClicked.connect(self.operator_toast)
 		self._dem_item = None
 		self._goalIcon = None
 		self.gworld = [0,0]
@@ -118,6 +109,7 @@ class SimulationWindow(QWidget):
 		self.count = 0
 		self.num_options = 5
 		self.paths = None
+		self.span = None
 
 
 		#Minimap ---------------------------
@@ -195,15 +187,15 @@ class SimulationWindow(QWidget):
 		goGroup.setStyleSheet("QGroupBox {background-color: beige; border: 4px inset grey;}")
 
 		self.go_btn = QPushButton('Go',self)
-		self.go_btn.setEnabled(False)
+		#self.go_btn.setEnabled(False)
 		self.pushLayout.addWidget(self.go_btn,5,10,2,4); 
-		self.go_btn.setStyleSheet("background-color: grey; color: white")
+		self.go_btn.setStyleSheet("background-color: green; color: white")
 		self.go_btn.setFont(QtGui.QFont('Lato', 12))
 
 		self.no_btn = QPushButton('No Go',self)
-		self.no_btn.setEnabled(False)
+		#self.no_btn.setEnabled(False)
 		self.pushLayout.addWidget(self.no_btn,7,10,2,4); 
-		self.no_btn.setStyleSheet("background-color: grey; color: white")
+		self.no_btn.setStyleSheet("background-color: red; color: white")
 		self.no_btn.setFont(QtGui.QFont('Lato', 12))
 
 		self.prev_btn = QPushButton('Previous Traverse',self)
@@ -219,22 +211,22 @@ class SimulationWindow(QWidget):
 		self.sq_label.setStyleSheet("background-color: white; border: 4px inset grey;")
 		self.sq_label.setFont(QtGui.QFont('Lato', 15))
 
+		self.go_btn.clicked.connect(self.go_button)
+		self.no_btn.clicked.connect(self.no_button)
 
-		self.go_btn.clicked.connect(self.operator_toast)
-		self.no_btn.clicked.connect(self.operator_toast)
 		self.prev_btn.clicked.connect(self.traverse_history)
 
 		#--------------------------------------------------------------------
-		self.table = QTableWidget(self.num_options,5,self)
+		self.table = QTableWidget(self.num_options,6,self)
 
 		self.table.setFont(QtGui.QFont('Lato', 12))
 		self.table.horizontalHeader().setFont(QtGui.QFont('Lato', 12))
 		self.table.verticalHeader().setFont(QtGui.QFont('Lato', 12))
-		self.table.setHorizontalHeaderLabels(('Span', 'Outcome Assessment','% of Samples','Min. Reward', 'Avg. Steps'))
+		self.table.setHorizontalHeaderLabels(('Span', 'Outcome Assessment','Avg. Steps','% of Samples','Min. Reward', '% Goal Reached'))
 		self.table.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 		self.table.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 		self.table.setStyleSheet("background-color: rgb(192,192,192)")
-		self.table.setMaximumWidth(self.table.horizontalHeader().length()+10)
+		self.table.setMaximumWidth(self.table.horizontalHeader().length()+30)
 		self.table.setMaximumHeight(self.table.verticalHeader().length()+31)
 		#self.table.setSizePolicy(QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Expanding))
 		self.table.resizeColumnsToContents()
@@ -256,7 +248,11 @@ class SimulationWindow(QWidget):
 
 		self.layout.addWidget(histGroup, 1,11,8,12)
 
+	def go_button(self):
+		self.buttonClicked.emit(1)
 
+	def no_button(self):
+		self.buttonClicked.emit(0)
 
 	def sliderChanged(self):
 		self.a = 255*self.beliefOpacitySlider.sliderPosition()/100
@@ -306,7 +302,16 @@ class SimulationWindow(QWidget):
 
 
 
-	def operator_toast(self):
+	def operator_toast(self, button):
+		_,_, result = self.getResults_client(self._goalID,'present')
+		if button == 1 and result == 1:
+			self.score_delta = 1
+		elif button == 1 and result == 0: 
+			self.score_delta = -1
+		elif button == 0:
+			self.score_delta = -0.25
+		self.current_score = self.current_score +self.score_delta
+
 		print "Opening a new popup window..."
 		self.setEnabled(False)
 		self.shotClock.stop()
@@ -325,10 +330,9 @@ class SimulationWindow(QWidget):
 
 		goalLoc = self.allGoals[self.count-1][1]
 
-		actions,reward,result= self.getResults_client(goalID)
+		actions,reward,result= self.getResults_client(goalID,'past')
 
-
-		self.trav_hist = HistoryWidget(dem,haz,time,goalID,goalLoc,actions,reward,result)
+		self.trav_hist = HistoryWidget(dem,haz,time,goalID,goalLoc,actions,reward,result,self.prev_rewards,self.score_delta)
 		self.trav_hist.setGeometry(QRect(100, 100, 1000, 1000))
 		self.trav_hist.submit_btn.clicked.connect(self.trav_submit)
 		self.trav_hist.show()
@@ -340,36 +344,60 @@ class SimulationWindow(QWidget):
 	def survey_submit(self):
 		self.paths = None
 		self.prev_time_remaining = self.time_remaining
-
+		self.prev_rewards = self.rewards
+		self.score.setText('Current Score: ' + str(self.current_score))
 		self.time_remaining = 120
 		self.timer.setText('Time Remaining: ' + str(self.time_remaining) + ' seconds')
 		self.shotClock.start(1000)
 		self.count = self.count +1
-		self.goals_changed.emit()
-		self.buildTable()
-		self.go_btn.setEnabled(False)
-		self.go_btn.setStyleSheet("background-color: grey; color: white")
-		self.survey.close()
 		self.setEnabled(True)
-		self.no_btn.setEnabled(False)
-		self.no_btn.setStyleSheet("background-color: grey; color: white")
-		
-	def make_connections(self): 
-		'''self.minimapView.mousePressEvent = lambda event:imageMousePress(event,self); 
-		self.minimapView.mouseMoveEvent = lambda event:imageMouseMove(event,self); 
-		self.minimapView.mouseReleaseEvent = lambda event:imageMouseRelease(event,self);
+		self.goals_changed.emit()
+		#elf.buildTable()
+		#self.go_btn.setEnabled(False)
+		#self.go_btn.setStyleSheet("background-color: grey; color: white")
+		self.survey.close()
 
-		self.goGroup.mousePressEvent = lambda event:imageMousePress(event,self); 
-		self.goGroup.mouseMoveEvent = lambda event:imageMouseMove(event,self); 
-		self.goGroup.mouseReleaseEvent = lambda event:imageMouseRelease(event,self);
-
-		self.table.mousePressEvent = lambda event:imageMousePress(event,self); 
-		self.table.mouseMoveEvent = lambda event:imageMouseMove(event,self); 
-		self.table.mouseReleaseEvent = lambda event:imageMouseRelease(event,self);'''
-		pass
+		#self.no_btn.setEnabled(False)
+		#self.no_btn.setStyleSheet("background-color: grey; color: white")
 		
-	def checkbox_callback(self):
-		count = 0
+		
+	def checkbox_callback(self,val, box):
+		msg = OptionSelect()
+
+		try:
+			self.span.remove()
+			self.notspan.remove()
+			self.hist.canvas.span.remove()
+			self.hist.canvas.notspan.remove()
+		except:
+			pass
+
+		self.hist.canvas.draw()
+
+		if val == 2:
+			ax_min, ax_max = self.hist.canvas.ax.get_xlim()
+			self.hist.canvas.ax.set_xlim([0,ax_max])
+			self.span = self.hist.canvas.ax.axvspan(0, self.bins[box], color='red', alpha=0.5)
+			self.notspan = self.hist.canvas.ax.axvspan(self.bins[box], ax_max, color='green', alpha=0.15)
+			self.hist.canvas.draw()
+
+			msg.option = box -1
+			msg.boundary = True
+			self.option_pub.publish(msg)
+
+		elif val == 0:
+			msg.option = 7
+			msg.boundary = False
+			self.option_pub.publish(msg)
+
+		'''for i in range(0,len(self.cb_list)-1):
+			if i == box:
+				pass
+			else:
+				self.cb_list[i].setChecked(0)'''
+
+
+		'''count = 0
 		for i in range(0, len(self.cb_list)):
 			count = count + self.cb_list[i].checkState()
 			
@@ -387,31 +415,30 @@ class SimulationWindow(QWidget):
 			self.go_btn.setEnabled(False)
 			self.go_btn.setStyleSheet("background-color: grey; color: white")
 			self.no_btn.setEnabled(False)
-			self.no_btn.setStyleSheet("background-color: grey; color: white")
+			self.no_btn.setStyleSheet("background-color: grey; color: white")'''
 
 	def buildTable(self):
 
-		cb1  = QtWidgets.QCheckBox( parent=self.table )
-		cb2  = QtWidgets.QCheckBox( parent=self.table )
-		cb3  = QtWidgets.QCheckBox( parent=self.table )
-		cb4  = QtWidgets.QCheckBox( parent=self.table )
-		cb5  = QtWidgets.QCheckBox( parent=self.table )
+		self.cb1  = QtWidgets.QCheckBox( parent=self.table )
+		self.cb2  = QtWidgets.QCheckBox( parent=self.table )
+		self.cb3  = QtWidgets.QCheckBox( parent=self.table )
+		self.cb4  = QtWidgets.QCheckBox( parent=self.table )
+		self.cb5  = QtWidgets.QCheckBox( parent=self.table )
 
-		self.cb_list = [cb1, cb2, cb3, cb4, cb5]
+		self.cb_list = [self.cb1, self.cb2, self.cb3, self.cb4, self.cb5]
 		for i in range(0,self.table.rowCount()):
 			self.cb_list[i]  = QtWidgets.QCheckBox( parent=self.table )
 			self.cb_list[i].setTristate(False)
-			self.cb_list[i].setChecked(1)
-			self.cb_list[i].stateChanged.connect(self.checkbox_callback)
+			self.cb_list[i].setChecked(0)
+			self.cb_list[i].stateChanged.connect(lambda val, i=i: self.checkbox_callback(val, i))
 
 			self.item_p = QTableWidgetItem(str(0))
-			item_q = QTableWidgetItem(str(0.0))
 			self.table.setToolTip('Investigate the distribution of potential outcomes')
 			
-			item_q.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+			self.item_p.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
 
 			self.table.setCellWidget(i,0, self.cb_list[i])
-			self.table.setItem(i, 2, item_q)
+
 
 
 		#self.table.resizeColumnsToContents()
@@ -431,7 +458,7 @@ class SimulationWindow(QWidget):
 		try:
 			goal = rospy.ServiceProxy('/policy/policy_server/GetMCSims', GetMCSims)
 			response = goal(id)
-			return response.rewards
+			return response.rewards, response.results
 
 		except rospy.ServiceException, e:
 			print "Service call failed: %s"%e
@@ -445,10 +472,10 @@ class SimulationWindow(QWidget):
 		except rospy.ServiceException, e:
 			print "Service call failed: %s"%e
 
-	def getResults_client(self, id):
+	def getResults_client(self, id, temp):
 		try:
 			goal = rospy.ServiceProxy('/policy/policy_server/GetResults', GetResults)
-			response = goal(id)
+			response = goal(id, temp)
 
 			return response.actions, response.reward, response.result
 		except rospy.ServiceException, e:
@@ -595,7 +622,7 @@ class SimulationWindow(QWidget):
 		for i in range(self.num_options): 
 			tiles = QTableWidgetItem("%.2f" % np.mean(lengths[i]))
 			tiles.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
-			self.table.setItem(i, 5, tiles)
+			self.table.setItem(i, 2, tiles)
 
 	def count_rewards(self):
 		first = []
@@ -604,26 +631,40 @@ class SimulationWindow(QWidget):
 		four = []
 		fifth = []
 		lengths = []
+		g1 = []
+		g2 = []
+		g3 = []
+		g4 = []
+		g5 = []
 
 		for i in range(0,len(self.rewards)):
 			if self.rewards[i] > self.bins[0]:
 				first.append(self.rewards[i])
+				g1.append(self.sim_results[i])
 			if self.rewards[i] > self.bins[1]:
 				sec.append(self.rewards[i])
+				g2.append(self.sim_results[i])
 			if self.rewards[i] > self.bins[2]:
 				thir.append(self.rewards[i])
+				g3.append(self.sim_results[i])
 			if self.rewards[i] > self.bins[3]:
 				four.append(self.rewards[i])
+				g4.append(self.sim_results[i])
 			if self.rewards[i] > self.bins[4]:
 				fifth.append(self.rewards[i])
+				g5.append(self.sim_results[i])
+
 		lengths = [first, sec, thir, four, fifth]
+		goals = [g1,g2,g3,g4,g5]
 		for i in range(self.num_options): 
 			traces = QTableWidgetItem(str(int(float(len(lengths[i]))/float((len(self.rewards)))*100)) + '%')
+			goal = QTableWidgetItem(str(int(float(sum(goals[i]))/float((len(goals[i])))*100)) + '%')
 			avg = QTableWidgetItem(str(int(self.bins[i])))
 			traces.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
 			avg.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
 			self.table.setItem(i, 3, traces)
 			self.table.setItem(i, 4, avg)
+			self.table.setItem(i, 5, goal)
 
 	def convertToGridCoords(self,i, width, height):
 		y = i//width
@@ -714,13 +755,15 @@ class SimulationWindow(QWidget):
 
 
 		self.bins = self.getBins_client(self._goalID)
+		self.rewards, self.sim_results = self.getRewards_client(self._goalID)
+		self.max_reward = max(self.rewards)	
 
 		self.buildTable()
-		self.update_bins()
 		self.makeHist()
 		self.draw_paths()
 		self.avg_paths()
 		self.count_rewards()
+		self.update_bins()
 
 
 		try:
@@ -751,8 +794,6 @@ class SimulationWindow(QWidget):
 			pass
 
 	def update_bins(self):
-		self.rewards = self.getRewards_client(self._goalID)
-		self.max_reward = max(self.rewards)	
 
 		labels = {-1: 'Very Bad', -0.5: 'Bad', -0.1: 'Fair', 0.1: 'Good', 0.5 : 'Very good'}
 		outcome = []
@@ -764,7 +805,12 @@ class SimulationWindow(QWidget):
 				value = labels[max([x for x in labels.keys() if x <= outcome[i]])]
 				self.item_p = QTableWidgetItem(value)
 			else: 
-				self.item_p = QTableWidgetItem('Guarenteed')
+				#self.item_p = QTableWidgetItem('Guarenteed')
+				self.cb_list[i].setEnabled(False)
+				for j in range(0,self.table.columnCount()):
+					blank = QTableWidgetItem('')
+					blank.setFlags(Qt.ItemIsSelectable)
+					self.table.setItem(i,j,blank)
 			self.item_p.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
 			self.table.setItem(i, 1, self.item_p)
 			if outcome[i] > 0 and outcome[i] != None:

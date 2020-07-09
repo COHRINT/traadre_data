@@ -14,11 +14,12 @@ import numpy as np
 import RobotIcon
 import cv2
 import copy
+from OA import *
 from cv_bridge import CvBridge, CvBridgeError
 
 
 class HistoryWidget(QtWidgets.QWidget):
-	def __init__(self, dem, hazmap, time, goalID, goalLoc, actions, reward, result):
+	def __init__(self, dem, hazmap, time, goalID, goalLoc, actions, reward, result,rewards,delta):
 		QtWidgets.QWidget.__init__(self)   # Inherit from QWidget 
 		self.setWindowModality(3)
 		self.setWindowTitle('Previous Traverse Results')
@@ -73,6 +74,12 @@ class HistoryWidget(QtWidgets.QWidget):
 
 		stateGroup.setStyleSheet("background-color: beige; border: 4px inset grey; font: 15pt Lato")
 		self.current_score = 0
+		self.solver_quality = 0
+
+
+		self.outcome_assessment = outcomeAssessment(np.array(rewards),reward)
+		labels = {-1: 'Very Bad', -0.5: 'Bad', -0.1: 'Fair', 0.1: 'Good', 0.5 : 'Very good'}
+		value = labels[max([x for x in labels.keys() if x <= self.outcome_assessment])]
 
 		self.reward = QLabel()
 		self.reward.setStyleSheet("background-color: white")
@@ -89,8 +96,19 @@ class HistoryWidget(QtWidgets.QWidget):
 		self.score.setToolTip("Current score")
 		self.score.setStyleSheet("background-color: white")
 
-		self.oa.setText('Outcome: ')
-		self.sq.setText('Solver: ')
+		self.oa.setText('Outcome: ' + value)
+
+		'''if self.outcome_assessment > 0 and self.outcome_assessment != None:
+			color = QtGui.QColor(0, 250, 0, 150*self.outcome_assessment)
+		elif self.outcome_assessment < 0 and self.outcome_assessment != None:
+			color = QtGui.QColor(250, 0, 0, 150*-1*self.outcome_assessment)
+		values = "{r}, {g}, {b}, {a}".format(r = 250,g = 0,b = 0,a = 20)
+		self.oa.setStyleSheet("background-color:rgba("+values+"")'''
+
+		self.current_score = delta
+
+
+		self.sq.setText('Solver: ' + str(self.solver_quality))
 		self.reward.setText('Accumulated Reward: ' + str(int(reward)))
 		self.goal.setText('Goal: '+ goalID)
 		self.timer.setText('Time Remaining: ' + str(time) + ' seconds')
@@ -220,3 +238,4 @@ class HistoryWidget(QtWidgets.QWidget):
 
 		painter.end(); 
 		planeWidget.setPixmap(pm); 
+
