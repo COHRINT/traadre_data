@@ -107,7 +107,7 @@ class SimulationWindow(QWidget):
 		self._robotIcon = None
 		self.demDownsample = 4
 		self.count = 0
-		self.num_options = 5
+		self.num_options = 6
 		self.paths = None
 		self.span = None
 
@@ -181,6 +181,12 @@ class SimulationWindow(QWidget):
 		#------------------------------------------
 		self.pushLayout = QGridLayout();
 
+		#Stop interfacing from stretching to accomodate widgets!
+		for i in range(1,self.pushLayout.rowCount()):
+			self.pushLayout.setRowStretch(i,1)
+		for i in range(1,self.pushLayout.columnCount()):
+			self.pushLayout.setColumnStretch(i,1)
+
 		goGroup = QGroupBox()
 		goGroup.setLayout(self.pushLayout)
 
@@ -188,26 +194,29 @@ class SimulationWindow(QWidget):
 
 		self.go_btn = QPushButton('Go',self)
 		#self.go_btn.setEnabled(False)
-		self.pushLayout.addWidget(self.go_btn,5,10,2,4); 
+		self.pushLayout.addWidget(self.go_btn,3,10,1,4); 
+		self.go_btn.setFixedSize(QSize(300,50))
 		self.go_btn.setStyleSheet("background-color: green; color: white")
 		self.go_btn.setFont(QtGui.QFont('Lato', 12))
 
 		self.no_btn = QPushButton('No Go',self)
 		#self.no_btn.setEnabled(False)
-		self.pushLayout.addWidget(self.no_btn,7,10,2,4); 
+		self.pushLayout.addWidget(self.no_btn,6,10,1,4); 
+		self.no_btn.setFixedSize(QSize(300,50))
 		self.no_btn.setStyleSheet("background-color: red; color: white")
 		self.no_btn.setFont(QtGui.QFont('Lato', 12))
 
 		self.prev_btn = QPushButton('Previous Traverse',self)
 		self.prev_btn.setEnabled(False)
-		self.pushLayout.addWidget(self.prev_btn,9,10,2,4); 
+		self.pushLayout.addWidget(self.prev_btn,9,10,1,4); 
+		self.prev_btn.setFixedSize(QSize(300,50))
 		self.prev_btn.setStyleSheet("background-color: grey; color: white")
 		self.prev_btn.setFont(QtGui.QFont('Lato', 12))
 		
 		self.sq_label = QLabel()
 		self.sq = None
 		self.sq_label.setText('Solver Quality: ' + str(self.sq))
-		self.pushLayout.addWidget(self.sq_label,9,2,1,4)
+		self.pushLayout.addWidget(self.sq_label,9,3,1,4)
 		self.sq_label.setStyleSheet("background-color: white; border: 4px inset grey;")
 		self.sq_label.setFont(QtGui.QFont('Lato', 15))
 
@@ -227,13 +236,17 @@ class SimulationWindow(QWidget):
 		self.table.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 		self.table.setStyleSheet("background-color: rgb(192,192,192)")
 		self.table.setMaximumWidth(self.table.horizontalHeader().length()+30)
+		self.table.setMinimumHeight(self.table.verticalHeader().length()+28)
 		self.table.setMaximumHeight(self.table.verticalHeader().length()+31)
 		#self.table.setSizePolicy(QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Expanding))
 		self.table.resizeColumnsToContents()
 		#self.table.resizeRowsToContents()
 
 
-		self.pushLayout.addWidget(self.table,5,1,6,8,Qt.AlignTop); 
+		self.pushLayout.addWidget(self.table,1,1,10,8,Qt.AlignTop); 
+
+
+
 		self.layout.addWidget(goGroup,10,11,4,12)
 
 
@@ -310,7 +323,7 @@ class SimulationWindow(QWidget):
 			self.score_delta = -1
 		elif button == 0:
 			self.score_delta = -0.25
-		self.current_score = self.current_score +self.score_delta
+		self.current_score +=self.score_delta
 
 		print "Opening a new popup window..."
 		self.setEnabled(False)
@@ -424,8 +437,9 @@ class SimulationWindow(QWidget):
 		self.cb3  = QtWidgets.QCheckBox( parent=self.table )
 		self.cb4  = QtWidgets.QCheckBox( parent=self.table )
 		self.cb5  = QtWidgets.QCheckBox( parent=self.table )
+		self.cb6  = QtWidgets.QCheckBox( parent=self.table )
 
-		self.cb_list = [self.cb1, self.cb2, self.cb3, self.cb4, self.cb5]
+		self.cb_list = [self.cb1, self.cb2, self.cb3, self.cb4, self.cb5, self.cb6]
 		for i in range(0,self.table.rowCount()):
 			self.cb_list[i]  = QtWidgets.QCheckBox( parent=self.table )
 			self.cb_list[i].setTristate(False)
@@ -438,7 +452,6 @@ class SimulationWindow(QWidget):
 			self.item_p.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
 
 			self.table.setCellWidget(i,0, self.cb_list[i])
-
 
 
 		#self.table.resizeColumnsToContents()
@@ -491,6 +504,16 @@ class SimulationWindow(QWidget):
 		except rospy.ServiceException, e:
 			print "Service call failed: %s"%e
 
+	def getPerf_client(self, id):
+		try:
+			goal = rospy.ServiceProxy('/policy/policy_server/GetPerf', GetPerf)
+			response = goal(id)
+
+
+			return response.reward, response.actions
+		except rospy.ServiceException, e:
+			print "Service call failed: %s"%e
+
 	def setCurrentGoal_client(self,id):
 		try:
 			goal = rospy.ServiceProxy('/policy/policy_server/SetCurrentGoal', SetCurrentGoal)
@@ -520,6 +543,7 @@ class SimulationWindow(QWidget):
 
 		self.hist.canvas.draw()
 
+
 		self.histLayout.addWidget(self.hist)
 
 		#Histogram stuff
@@ -529,6 +553,8 @@ class SimulationWindow(QWidget):
 		mu = "%.1f" % np.mean(self.rewards)
 		std = "%.2f" % np.std(self.rewards)
 		samples = len(self.rewards)
+
+		self.hist.canvas.ax.set_xlim(0,max(self.rewards)+100)
 
 		self.hist.canvas.ax.set_xlabel('Accumulated Reward')
 		self.hist.canvas.ax.set_ylabel('Samples out of ' + str(samples))
@@ -568,13 +594,13 @@ class SimulationWindow(QWidget):
 		tile_x = (float(self._dem.width())/20.0)/2
 		tile_y = (float(self._dem.height())/20.0)/2
 		counter = 0
-		self.pathDict = {}
+		#self.pathDict = {}
 
 		for i in self.paths:
 			x_norm = []
 			y_norm = []
 			counter = counter +1
-			self.pathDict[str(i.reward)] = (i.elements)
+			#self.pathDict[str(i.reward)] = (i.elements)
 			for j in i.elements:
 				x,y = self.convertToGridCoords(j,20,20)
 				x_norm.append(int(float(x/20.0)*self._dem.width() + tile_x))
@@ -605,20 +631,23 @@ class SimulationWindow(QWidget):
 		thir = []
 		four = []
 		fifth = []
+		sixth = []
 		lengths = []
 
-		for i in self.pathDict.keys():
-			if int(i) > self.bins[0]:
-				first.append(len(self.pathDict[i]))
-			if int(i) > self.bins[1]:
-				sec.append(len(self.pathDict[i]))
-			if int(i) > self.bins[2]:
-				thir.append(len(self.pathDict[i]))
-			if int(i) > self.bins[3]:
-				four.append(len(self.pathDict[i]))
-			if int(i) > self.bins[4]:
-				fifth.append(len(self.pathDict[i]))
-		lengths = [first, sec, thir, four, fifth]
+		for i in range(0,len(self.paths)):
+			if int(self.paths[i].reward) > self.bins[0]:
+				first.append(len(self.paths[i].elements))
+			if int(self.paths[i].reward) > self.bins[1]:
+				sec.append(len(self.paths[i].elements))
+			if int(self.paths[i].reward) > self.bins[2]:
+				thir.append(len(self.paths[i].elements))
+			if int(self.paths[i].reward) > self.bins[3]:
+				four.append(len(self.paths[i].elements))
+			if int(self.paths[i].reward) > self.bins[4]:
+				fifth.append(len(self.paths[i].elements))
+			if int(self.paths[i].reward) > self.bins[5]:
+				sixth.append(len(self.paths[i].elements))
+		lengths = [first, sec, thir, four, fifth, sixth]
 		for i in range(self.num_options): 
 			tiles = QTableWidgetItem("%.2f" % np.mean(lengths[i]))
 			tiles.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
@@ -630,12 +659,14 @@ class SimulationWindow(QWidget):
 		thir = []
 		four = []
 		fifth = []
+		sixth = []
 		lengths = []
 		g1 = []
 		g2 = []
 		g3 = []
 		g4 = []
 		g5 = []
+		g6 = []
 
 		for i in range(0,len(self.rewards)):
 			if self.rewards[i] > self.bins[0]:
@@ -653,18 +684,38 @@ class SimulationWindow(QWidget):
 			if self.rewards[i] > self.bins[4]:
 				fifth.append(self.rewards[i])
 				g5.append(self.sim_results[i])
+			if self.rewards[i] > self.bins[5]:
+				sixth.append(self.rewards[i])
+				g6.append(self.sim_results[i])
 
-		lengths = [first, sec, thir, four, fifth]
-		goals = [g1,g2,g3,g4,g5]
+		lengths = [first, sec, thir, four, fifth,sixth]
+		goals = [g1,g2,g3,g4,g5,g6]
+
 		for i in range(self.num_options): 
 			traces = QTableWidgetItem(str(int(float(len(lengths[i]))/float((len(self.rewards)))*100)) + '%')
-			goal = QTableWidgetItem(str(int(float(sum(goals[i]))/float((len(goals[i])))*100)) + '%')
+			try:
+				goal = QTableWidgetItem(str(int(float(sum(goals[i]))/float((len(goals[i])))*100)) + '%')
+			except:
+				goal = QTableWidgetItem(str(0) + '%')
 			avg = QTableWidgetItem(str(int(self.bins[i])))
 			traces.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
 			avg.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
 			self.table.setItem(i, 3, traces)
 			self.table.setItem(i, 4, avg)
 			self.table.setItem(i, 5, goal)
+
+	def drawIdeal(self):
+		reward, actions = self.getPerf_client(self._goalID)
+		y_min,y_max = self.hist.canvas.ax.get_ylim()
+
+		self.hist.canvas.ax.axvline(x=reward, linestyle = '--', color = '#00FF70', linewidth = 4)
+		self.hist.canvas.ax.plot(reward,0, marker = '^', markersize = 25, color = '#00FF70')
+		self.hist.canvas.ax.plot(reward,y_max, marker = 'v', markersize = 25, color = '#00FF70')
+
+		'''if reward in self.bins:
+			reward += 150'''
+
+		self.bins.append(reward)
 
 	def convertToGridCoords(self,i, width, height):
 		y = i//width
@@ -755,15 +806,19 @@ class SimulationWindow(QWidget):
 
 
 		self.bins = self.getBins_client(self._goalID)
+		self.bins = list(self.bins)
 		self.rewards, self.sim_results = self.getRewards_client(self._goalID)
+
 		self.max_reward = max(self.rewards)	
 
 		self.buildTable()
 		self.makeHist()
+		self.drawIdeal()
 		self.draw_paths()
 		self.avg_paths()
 		self.count_rewards()
 		self.update_bins()
+
 
 
 		try:
@@ -819,6 +874,10 @@ class SimulationWindow(QWidget):
 				self.table.item(i,1).setBackground(QtGui.QColor(250, 0, 0, 150*-1*outcome[i]))	
 			else:
 				pass
+
+		for i in range(1,self.table.columnCount()):
+			if i != 1:
+				self.table.item(5,i).setBackground(QtGui.QColor(0, 255, 112, 250))
 
 		self.table.update()
 

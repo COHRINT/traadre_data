@@ -75,6 +75,7 @@ class MplCanvas(Canvas):
 			Canvas.updateGeometry(self)
 
 
+
 			cid = self.fig.canvas.mpl_connect('button_press_event', onclick)
 			self.goal_sub = rospy.Subscriber('current_goal', NamedGoal, self.goal_cb)
 			self.option_pub = rospy.Publisher('option', OptionSelect, queue_size=10)
@@ -92,6 +93,9 @@ class MplCanvas(Canvas):
 
 			self._goal = msg.id
 				#self.goals_changed.emit()
+
+
+
 
 
 		def getRewards_client(self, id):
