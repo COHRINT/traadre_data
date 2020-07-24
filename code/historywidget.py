@@ -12,9 +12,11 @@ from geometry_msgs.msg import *
 from sensor_msgs.msg import *
 import numpy as np
 import RobotIcon
+import QCircle
 import cv2
 import copy
 from OA import *
+from plane_functions import *
 from cv_bridge import CvBridge, CvBridgeError
 
 
@@ -93,7 +95,7 @@ class HistoryWidget(QtWidgets.QWidget):
 
 		self.goal.setStyleSheet("background-color: white")
 		self.score = QLabel()
-		self.score.setToolTip("Current score")
+		#self.score.setToolTip("Current score")
 		self.score.setStyleSheet("background-color: white")
 
 		self.oa.setText('Outcome: ' + value)
@@ -138,8 +140,13 @@ class HistoryWidget(QtWidgets.QWidget):
 
 		#------------------------------
 		self.drawLetter(goalID,goalLoc)
-		self.pathPlane = self.minimapScene.addPixmap(self.makeTransparentPlane(self.minimapScene.width(), self.minimapScene.height()))
+		self.pathPlane = self.minimapScene.addPixmap(makeTransparentPlane(self.minimapScene.width(), self.minimapScene.height()))
 		self.draw_paths(actions,result)
+
+		#-----------------------------
+		'''self.thisRobot = QCircle.QArrow(color=QColor(0,250,0,255))
+		self.minimapScene.addItem(self.thisRobot);
+		self.thisRobot.setZValue(2)'''
 
 	def center(self):
 		'''Centers the window on the screen.'''
@@ -175,14 +182,8 @@ class HistoryWidget(QtWidgets.QWidget):
 		self._goalIcon.setPos(QPointF(self.gworld[0], self.gworld[1]))
 
 
-
-	def makeTransparentPlane(self, width, height):
-		testMap = QPixmap(width,height); 
-		testMap.fill(QColor(0,0,0,0)); 
-		return testMap; 
-
 	def draw_paths(self, actions, result):
-		self.planeFlushPaint(self.pathPlane)
+		planeFlushPaint(self.pathPlane)
 		tile_x = (float(self.minimapScene.width())/20.0)/2
 		tile_y = (float(self.minimapScene.height())/20.0)/2
 		counter = 0
@@ -194,9 +195,9 @@ class HistoryWidget(QtWidgets.QWidget):
 			x_norm.append(int(float(x/20.0)*self.minimapScene.width() + tile_x))
 			y_norm.append(int(float(y/20.0)*self.minimapScene.height() + tile_y))
 		if result == 1:
-			self.planeAddPaint(self.pathPlane, 200, x_norm, y_norm, QColor(0,251,0,60))
+			planeAddPaint(self.pathPlane, 200, x_norm, y_norm, QColor(0,251,0,60))
 		else:  
-			self.planeAddPaint(self.pathPlane, 200, x_norm, y_norm, QColor(251,0,0,60))
+			planeAddPaint(self.pathPlane, 200, x_norm, y_norm, QColor(251,0,0,60))
 					#print x, y
 
 		self.pathPlane.setZValue(2)
@@ -205,37 +206,4 @@ class HistoryWidget(QtWidgets.QWidget):
 		y = i//width
 		x = i % width
 		return x, y
-
-	def planeAddPaint(self,planeWidget,value,x,y,col,pen=None):
-		pm = planeWidget.pixmap(); 
-		pm.toImage()
-		painter = QPainter(pm); 
-
-		if(pen is None):
-			if(col is None):
-				pen = QPen(QColor(0,0,150,value)); 
-			else:
-				pen = QPen(col); 
-		pen.setWidth(5)
-		painter.setPen(pen)
-		for p in range(len(x)-1):
-			painter.drawLine(x[p],y[p],x[p+1],y[p+1]); 
-		painter.end(); 
-		planeWidget.setPixmap(pm);
-
-
-	def planeFlushPaint(self,planeWidget,col = None,pen=None):
-		pm = planeWidget.pixmap(); 
-		pm.fill(QColor(0,0,0,0)); 
-
-		painter = QPainter(pm); 
-		if(pen is None):
-			if(col is None):
-				pen = QPen(QColor(0,0,0,255)); 
-			else:
-				pen = QPen(col); 
-		painter.setPen(pen)
-
-		painter.end(); 
-		planeWidget.setPixmap(pm); 
 

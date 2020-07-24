@@ -8,14 +8,15 @@ import sys,os, os.path
 
 import rospy
 import signal
-import QCircle
+from code.QCircle import *
 import math
-import RobotIcon
+from code.RobotIcon import *
 from traadre_msgs.msg import *
 from traadre_msgs.srv import *
 from geometry_msgs.msg import *
 from sensor_msgs.msg import *
-from OA import *
+from code.OA import *
+from code.plane_functions import *
 
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
@@ -27,9 +28,9 @@ import copy
 import matplotlib.pyplot as plt
 from cv_bridge import CvBridge, CvBridgeError
 
-from mplwidget import MplWidget
-from surveywidget import SurveyWidget
-from historywidget import HistoryWidget
+from code.mplwidget import MplWidget
+from code.surveywidget import SurveyWidget
+from code.historywidget import HistoryWidget
 
 
 class SimulationWindow(QWidget):
@@ -123,7 +124,7 @@ class SimulationWindow(QWidget):
 
 
 		#Add circle ---------------------------------------------
-		self.thisRobot = QCircle.QArrow(color=QColor(0,250,0,255))
+		self.thisRobot = QArrow(color=QColor(0,250,0,255))
 		self.minimapScene.addItem(self.thisRobot);
 		self.thisRobot.setZValue(2)
 
@@ -284,6 +285,8 @@ class SimulationWindow(QWidget):
 
 		if self.time_remaining < 10:
 			self.timer.setStyleSheet("background-color: rgba(255,0,0,150)")
+		if self.time_remaining == 0:
+			self.buttonClicked.emit(2)
 
 	def option_cb(self, data):
 		self.option_changed.emit(data.option, data.boundary)
@@ -294,13 +297,13 @@ class SimulationWindow(QWidget):
 
 		if boundary == False:
 			self.table.clearSelection()
-			self.planeFlushPaint(self.pathPlane)
+			planeFlushPaint(self.pathPlane)
 			self.draw_paths()
 		else:
 
-			self.table.selectRow(option+1)
+			self.table.selectRow(option)
 			self.redrawPaths()
-			band = self.bins[option+1]
+			band = self.bins[option]
 
 			for i in self.paths:
 				if i.reward >= (band):
@@ -310,7 +313,7 @@ class SimulationWindow(QWidget):
 						x,y = self.convertToGridCoords(j,20,20)
 						x_tmp.append(int(float(x/20.0)*self._dem.width() + tile_x))
 						y_tmp.append(int(float(y/20.0)*self._dem.height() + tile_y))
-					self.planeAddPaint(self.pathPlane, 200, x_tmp, y_tmp, QColor(250,251,0,50))
+					planeAddPaint(self.pathPlane, 200, x_tmp, y_tmp, QColor(250,251,0,50))
 
 
 
@@ -323,6 +326,8 @@ class SimulationWindow(QWidget):
 			self.score_delta = -1
 		elif button == 0:
 			self.score_delta = -0.25
+		else:
+			self.score_delta = -2
 		self.current_score +=self.score_delta
 
 		print "Opening a new popup window..."
@@ -380,6 +385,9 @@ class SimulationWindow(QWidget):
 		try:
 			self.span.remove()
 			self.notspan.remove()
+		except:
+			pass
+		try:
 			self.hist.canvas.span.remove()
 			self.hist.canvas.notspan.remove()
 		except:
@@ -387,28 +395,24 @@ class SimulationWindow(QWidget):
 
 		self.hist.canvas.draw()
 
-		if val == 2:
+		if val == True:
 			ax_min, ax_max = self.hist.canvas.ax.get_xlim()
 			self.hist.canvas.ax.set_xlim([0,ax_max])
 			self.span = self.hist.canvas.ax.axvspan(0, self.bins[box], color='red', alpha=0.5)
 			self.notspan = self.hist.canvas.ax.axvspan(self.bins[box], ax_max, color='green', alpha=0.15)
 			self.hist.canvas.draw()
 
-			msg.option = box -1
+			msg.option = box 
 			msg.boundary = True
 			self.option_pub.publish(msg)
 
-		elif val == 0:
+		elif val == False:
 			msg.option = 7
 			msg.boundary = False
 			self.option_pub.publish(msg)
 
-		'''for i in range(0,len(self.cb_list)-1):
-			if i == box:
-				pass
-			else:
-				self.cb_list[i].setChecked(0)'''
 
+		#self.hist.canvas.onclick()
 
 		'''count = 0
 		for i in range(0, len(self.cb_list)):
@@ -432,19 +436,19 @@ class SimulationWindow(QWidget):
 
 	def buildTable(self):
 
-		self.cb1  = QtWidgets.QCheckBox( parent=self.table )
-		self.cb2  = QtWidgets.QCheckBox( parent=self.table )
-		self.cb3  = QtWidgets.QCheckBox( parent=self.table )
-		self.cb4  = QtWidgets.QCheckBox( parent=self.table )
-		self.cb5  = QtWidgets.QCheckBox( parent=self.table )
-		self.cb6  = QtWidgets.QCheckBox( parent=self.table )
+		self.cb1  = QtWidgets.QRadioButton( parent=self.table )
+		self.cb2  = QtWidgets.QRadioButton( parent=self.table )
+		self.cb3  = QtWidgets.QRadioButton( parent=self.table )
+		self.cb4  = QtWidgets.QRadioButton( parent=self.table )
+		self.cb5  = QtWidgets.QRadioButton( parent=self.table )
+		self.cb6  = QtWidgets.QRadioButton( parent=self.table )
 
 		self.cb_list = [self.cb1, self.cb2, self.cb3, self.cb4, self.cb5, self.cb6]
 		for i in range(0,self.table.rowCount()):
-			self.cb_list[i]  = QtWidgets.QCheckBox( parent=self.table )
-			self.cb_list[i].setTristate(False)
-			self.cb_list[i].setChecked(0)
-			self.cb_list[i].stateChanged.connect(lambda val, i=i: self.checkbox_callback(val, i))
+			self.cb_list[i]  = QtWidgets.QRadioButton( parent=self.table )
+			#self.cb_list[i].setTristate(False)
+			#elf.cb_list[i].setChecked(0)
+			self.cb_list[i].clicked.connect(lambda val, i=i: self.checkbox_callback(val, i))
 
 			self.item_p = QTableWidgetItem(str(0))
 			self.table.setToolTip('Investigate the distribution of potential outcomes')
@@ -534,6 +538,49 @@ class SimulationWindow(QWidget):
 
 		#self.location_update.emit(self.worldX, self.worldY, self.worldYaw, self._robotFuel)
 
+	def hist_clicked(self, event):
+		msg = OptionSelect()
+		'''print('%s click: button=%d, x=%d, y=%d, xdata=%f, ydata=%f' %
+			('double' if event.dblclick else 'single', event.button,
+			 event.x, event.y, event.xdata, event.ydata))'''
+
+		#self.rewards = self.getRewards_client((self._goal))
+		max_reward = max(self.rewards)
+		width = max_reward
+		location = 7
+		msg.boundary = False
+
+		if event.xdata:
+			ax_min, ax_max = event.canvas.ax.get_xlim()
+			event.canvas.ax.set_xlim([0,ax_max])
+			try:
+				location = self.bins.index(min([x for x in self.bins if event.xdata <= x]))
+			except:
+				location = 7
+			
+		try:
+			self.span.remove()
+			self.notspan.remove()
+		except:
+			pass
+		if location < 6:
+			self.span = event.canvas.ax.axvspan(0, self.bins[location], color='red', alpha=0.5)
+			self.notspan = event.canvas.ax.axvspan(self.bins[location], ax_max, color='green', alpha=0.15)
+		event.canvas.draw()
+
+		if event.ydata and event.xdata and location != 7:
+			msg.option = int(location)
+			msg.boundary = True
+			self.cb_list[location].setChecked(1)
+		else:
+			for i in self.cb_list:
+				i.setAutoExclusive(False)
+				i.setChecked(0)
+				i.setAutoExclusive(True)
+
+		self.option_pub.publish(msg)
+
+
 	def makeHist(self):
 		if self.count != 0:
 			self.histLayout.removeWidget(self.hist)
@@ -546,6 +593,7 @@ class SimulationWindow(QWidget):
 
 		self.histLayout.addWidget(self.hist)
 
+		self.hist.canvas.mpl_connect('button_press_event', self.hist_clicked)
 		#Histogram stuff
 		self.hist.canvas.ax.clear()
 
@@ -590,28 +638,26 @@ class SimulationWindow(QWidget):
 	def draw_paths(self):
 		if self.paths == None:
 			self.paths = self.getPaths_client(self._goalID)	
-		self.planeFlushPaint(self.pathPlane)
+		planeFlushPaint(self.pathPlane)
 		tile_x = (float(self._dem.width())/20.0)/2
 		tile_y = (float(self._dem.height())/20.0)/2
-		counter = 0
 		#self.pathDict = {}
 
 		for i in self.paths:
 			x_norm = []
 			y_norm = []
-			counter = counter +1
 			#self.pathDict[str(i.reward)] = (i.elements)
 			for j in i.elements:
 				x,y = self.convertToGridCoords(j,20,20)
 				x_norm.append(int(float(x/20.0)*self._dem.width() + tile_x))
 				y_norm.append(int(float(y/20.0)*self._dem.height() + tile_y))
-			self.planeAddPaint(self.pathPlane, 200, x_norm, y_norm, QColor(0,251,0,30)) 
+			planeAddPaint(self.pathPlane, 200, x_norm, y_norm, QColor(0,251,0,30)) 
 					#print x, y
 
 		self.pathPlane.setZValue(2)
 
 	def redrawPaths(self):
-		self.planeFlushPaint(self.pathPlane)
+		planeFlushPaint(self.pathPlane)
 		tile_x = (float(self._dem.width())/20.0)/2
 		tile_y = (float(self._dem.height())/20.0)/2
 		counter = 0
@@ -623,7 +669,7 @@ class SimulationWindow(QWidget):
 				x,y = self.convertToGridCoords(j,20,20)
 				x_norm.append(int(float(x/20.0)*self._dem.width() + tile_x))
 				y_norm.append(int(float(y/20.0)*self._dem.height() + tile_y))
-			self.planeAddPaint(self.pathPlane, 200, x_norm, y_norm, QColor(211,211,211,30)) 
+			planeAddPaint(self.pathPlane, 200, x_norm, y_norm, QColor(211,211,211,30)) 
 					#print x, y
 	def avg_paths(self):
 		first = []
@@ -722,66 +768,13 @@ class SimulationWindow(QWidget):
 		x = i % width
 		return x, y
 
-	def makeTransparentPlane(self, width, height):
-		testMap = QPixmap(width,height); 
-		testMap.fill(QColor(0,0,0,0)); 
-		return testMap; 
-
-	'''def planeAddPaint(self,planeWidget,value,x,y,col=None,pen=None):
-		pm = planeWidget.pixmap(); 
-		pm.toImage()
-		painter = QPainter(pm); 
-
-		if(pen is None):
-			if(col is None):
-				pen = QPen(QColor(0,0,150,value)); 
-			else:
-				pen = QPen(col); 
-		pen.setWidth(5)
-		painter.setPen(pen)
-		painter.drawPoint(x,y); 
-		painter.end(); 
-		planeWidget.setPixmap(pm); '''
-
-
-	def planeAddPaint(self,planeWidget,value,x,y,col,pen=None):
-		pm = planeWidget.pixmap(); 
-		pm.toImage()
-		painter = QPainter(pm); 
-
-		if(pen is None):
-			if(col is None):
-				pen = QPen(QColor(0,0,150,value)); 
-			else:
-				pen = QPen(col); 
-		pen.setWidth(5)
-		painter.setPen(pen)
-		for p in range(len(x)-1):
-			painter.drawLine(x[p],y[p],x[p+1],y[p+1]); 
-		painter.end(); 
-		planeWidget.setPixmap(pm); 
-
-	def planeFlushPaint(self,planeWidget,col = None,pen=None):
-		pm = planeWidget.pixmap(); 
-		pm.fill(QColor(0,0,0,0)); 
-
-		painter = QPainter(pm); 
-		if(pen is None):
-			if(col is None):
-				pen = QPen(QColor(0,0,0,255)); 
-			else:
-				pen = QPen(col); 
-		painter.setPen(pen)
-
-		painter.end(); 
-		planeWidget.setPixmap(pm); 
 
 	def _updateGoal(self):
 		#Redraw the goal locations
 		#print 'Updating goal locations'
 		#If this is the first time we've seen this robot, create its icon
 		if self._goalIcon is None:
-			thisGoal = RobotIcon.RobotWidget(str(self._goalID), QColor(self._colors[1][0], self._colors[1][1], self._colors[1][2]))
+			thisGoal = RobotWidget(str(self._goalID), QColor(self._colors[1][0], self._colors[1][1], self._colors[1][2]))
 			thisGoal.setFont(QFont("SansSerif", max(self.h / 20.0,3), QFont.Bold))
 			thisGoal.setBrush(QBrush(QColor(self._colors[1][0], self._colors[1][1], self._colors[1][2])))          
 			self._goalIcon = thisGoal
@@ -1046,7 +1039,7 @@ class SimulationWindow(QWidget):
 		#        image.setColor(255, qRgb(200, 200, 200))  # color for unknown value -1
 
 		self._dem = image       
-		self.pathPlane = self.minimapScene.addPixmap(self.makeTransparentPlane(self._dem.width(), self._dem.height()))
+		self.pathPlane = self.minimapScene.addPixmap(makeTransparentPlane(self._dem.width(), self._dem.height()))
 		self.dem_changed.emit()
 		
 	def goal_cb(self, msg):
