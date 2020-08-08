@@ -74,8 +74,13 @@ class SimulationWindow(QWidget):
 		self.steer_sub = rospy.Subscriber('current_steer', Steering, self.state_callback)
 		self.goal_sub = rospy.Subscriber('current_goal', NamedGoal, self.goal_cb)
 		self.option_sub = rospy.Subscriber('option', OptionSelect, self.option_cb)
-		self.option_pub = rospy.Publisher('option', OptionSelect, queue_size=10)
+
+		self.option_pub = rospy.Publisher('dist_bin', OptionSelect, queue_size=10)
 		self.current_state_pub = rospy.Publisher('state', RobotState, queue_size=10)
+		self.hazard_pub = rospy.Publisher('hazard', Hazard, queue_size=10)
+		self.decision_pub = rospy.Publisher('user_decision', TraverseDecision, queue_size=10)
+		self.mouse_pub = rospy.Publisher('mouse', Mouse, queue_size=10)
+		self.history_pub = rospy.Publisher('history', PrevTraverse, queue_size=10)
 
 
 
@@ -269,8 +274,13 @@ class SimulationWindow(QWidget):
 		self.buttonClicked.emit(0)
 
 	def sliderChanged(self):
+		msg = Hazard()
 		self.a = 255*self.beliefOpacitySlider.sliderPosition()/100
 		self.hazmap_changed.emit(self.a)
+
+		msg.goal = self._goalID
+		msg.value = self.beliefOpacitySlider.sliderPosition()
+		self.hazard_pub.publish(msg)
 
 	def updateTime(self):
 		if self.time_remaining != 0:
@@ -319,6 +329,8 @@ class SimulationWindow(QWidget):
 
 
 	def operator_toast(self, button):
+		msg = TraverseDecision()
+
 		_,_, result = self.getResults_client(self._goalID,'present')
 		if button == 1 and result == 1:
 			self.score_delta = 1
@@ -330,6 +342,11 @@ class SimulationWindow(QWidget):
 			self.score_delta = -2
 		self.current_score +=self.score_delta
 
+		msg.total_score = self.current_score
+		msg.score_delta = self.score_delta
+		msg.time_remaining = self.time_remaining
+		self.decision_pub.publish(msg)
+
 		print "Opening a new popup window..."
 		self.setEnabled(False)
 		self.shotClock.stop()
@@ -339,6 +356,11 @@ class SimulationWindow(QWidget):
 		self.survey.show()
 
 	def traverse_history(self):
+		msg = PrevTraverse()
+		msg.current_goal = self._goalID
+		#msg.header = rospy.Time.now()
+		self.history_pub.publish(msg)
+
 		print "Opening a new popup window..."
 		self.setEnabled(False)
 		dem = self._dem_item.pixmap()
