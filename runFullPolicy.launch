@@ -20,7 +20,7 @@
     
     <!-- Start some UI -->
     <group ns="ui">
-    	    <node pkg="traadre_dla" type="interface.py" name="interface" output="screen">
+    	    <node pkg="traadre_dla" type="control1.py" name="interface" output="screen">
 	    	  <remap from="dem" to="/policy/dem"/>
 		  <remap from="pose" to="/pose"/>
 		  <remap from="state" to="/state"/>
