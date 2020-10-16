@@ -75,7 +75,7 @@ class SimulationWindow(QWidget):
 		self.goal_sub = rospy.Subscriber('current_goal', NamedGoal, self.goal_cb)
 		self.option_sub = rospy.Subscriber('option', OptionSelect, self.option_cb)
 
-		self.option_pub = rospy.Publisher('dist_bin', OptionSelect, queue_size=10)
+		self.option_pub = rospy.Publisher('option', OptionSelect, queue_size=10)
 		self.current_state_pub = rospy.Publisher('state', RobotState, queue_size=10)
 		self.hazard_pub = rospy.Publisher('hazard', Hazard, queue_size=10)
 		self.decision_pub = rospy.Publisher('user_decision', TraverseDecision, queue_size=10)
@@ -116,6 +116,8 @@ class SimulationWindow(QWidget):
 		self.num_options = 6
 		self.paths = None
 		self.span = None
+		self.goal_titles = ()
+		self.row = ()
 
 
 		#Minimap ---------------------------
@@ -248,7 +250,6 @@ class SimulationWindow(QWidget):
 		self.table.resizeColumnsToContents()
 		#self.table.resizeRowsToContents()
 
-
 		self.pushLayout.addWidget(self.table,1,1,10,8,Qt.AlignTop); 
 
 
@@ -324,9 +325,6 @@ class SimulationWindow(QWidget):
 						x_tmp.append(int(float(x/20.0)*self._dem.width() + tile_x))
 						y_tmp.append(int(float(y/20.0)*self._dem.height() + tile_y))
 					planeAddPaint(self.pathPlane, 200, x_tmp, y_tmp, QColor(250,251,0,50))
-
-
-
 
 	def operator_toast(self, button):
 		msg = TraverseDecision()
@@ -546,6 +544,14 @@ class SimulationWindow(QWidget):
 
 			response = goal(id)
 			return response.goal
+		except rospy.ServiceException, e:
+			print "Service call failed: %s"%e
+
+	def setCurrentHaz_client(self,id):
+		try:
+			goal = rospy.ServiceProxy('/policy/policy_server/SetCurrentHazard', SetCurrentHazard)
+
+			response = goal(id)
 		except rospy.ServiceException, e:
 			print "Service call failed: %s"%e
 
@@ -805,63 +811,75 @@ class SimulationWindow(QWidget):
 		self.allGoals = zip(self.goal_titles, self.row) #Zip the tuples together so I get a list of tuples (instead of a tuple of lists)
 		self.allGoals = sorted(self.allGoals, key=lambda param: param[0]) #Sort the combined list by the goal ID
 		self.allGoalsDict = dict(self.allGoals)
-
-
+		
 		self._goalID = self.allGoals[self.count][0]
-		self.setCurrentGoal_client(self._goalID)	
 
 
-		self.msg.pose.position.x = self.allGoalsDict[self.allGoals[self.count-1][0]].x
-		self.msg.pose.position.y = self.allGoalsDict[self.allGoals[self.count-1][0]].y
-		self.current_state_pub.publish(self.msg)
-
-		if self.count == 1:
-			self.prev_btn.setEnabled(True)
-			self.prev_btn.setStyleSheet('background-color: green; color: white')
-
-
-		self.bins = self.getBins_client(self._goalID)
-		self.bins = list(self.bins)
-		self.rewards, self.sim_results = self.getRewards_client(self._goalID)
-
-		self.max_reward = max(self.rewards)	
-
-		self.buildTable()
-		self.makeHist()
-		self.drawIdeal()
-		self.draw_paths()
-		self.avg_paths()
-		self.count_rewards()
-		self.update_bins()
+		if self._goalID == 'S':
+			#self.count = 0
+			self._goalIcon = None
+			planeFlushPaint(self.pathPlane)
+			self.histLayout.removeWidget(self.hist)
+			self.setCurrentHaz_client('/home/cohrint/catkin_ws/src/policy_server/config/new4.pkl')
+		elif self._goalID == 'K':
+			self.close()
+		else:
 
 
+			self.setCurrentGoal_client(self._goalID)	
 
-		try:
-			#Update the label's text:
-			self._goalIcon.setText(str(self._goalID))
-			self.goal.setText('Current Goal: ' + self._goalID)
-			#Pick up the world coordinates
-			self._goalLocations = [self._goal[1], self._goal[2]]
 
-			world = list(copy.deepcopy(self._goalLocations))
+			self.msg.pose.position.x = self.allGoalsDict[self.allGoals[self.count-1][0]].x
+			self.msg.pose.position.y = self.allGoalsDict[self.allGoals[self.count-1][0]].y
+			self.current_state_pub.publish(self.msg)
 
-			iconBounds = self._goalIcon.boundingRect()
+			if self.count == 1:
+				self.prev_btn.setEnabled(True)
+				self.prev_btn.setStyleSheet('background-color: green; color: white')
 
-			world[0] = world[0]/self.demDownsample
-			world[1] = world[1]/self.demDownsample
-			
-			#Adjust the world coords so that the icon is centered on the goal
-			self.gworld[0] = world[0] - iconBounds.width()/2 
-			self.gworld[1] = world[1] - iconBounds.height()/2 #mirror the y coord
 
-			#        world[1] = self.h - (world[1] + iconBounds.height()/2) #mirror the y coord
-			#        print 'Ymax:', self.h
-			print 'Drawing goal ', self._goalID, ' at ', world
-			self._goalIcon.setPos(QPointF(self.gworld[0], self.gworld[1]))
-			self.robot_odom_changed.emit()
+			self.bins = self.getBins_client(self._goalID)
+			self.bins = list(self.bins)
+			self.rewards, self.sim_results = self.getRewards_client(self._goalID)
 
-		except:
-			pass
+			self.max_reward = max(self.rewards)	
+
+			self.buildTable()
+			self.makeHist()
+			self.drawIdeal()
+			self.draw_paths()
+			self.avg_paths()
+			self.count_rewards()
+			self.update_bins()
+
+
+
+			try:
+				#Update the label's text:
+				self._goalIcon.setText(str(self._goalID))
+				self.goal.setText('Current Goal: ' + self._goalID)
+				#Pick up the world coordinates
+				self._goalLocations = [self._goal[1], self._goal[2]]
+
+				world = list(copy.deepcopy(self._goalLocations))
+
+				iconBounds = self._goalIcon.boundingRect()
+
+				world[0] = world[0]/self.demDownsample
+				world[1] = world[1]/self.demDownsample
+				
+				#Adjust the world coords so that the icon is centered on the goal
+				self.gworld[0] = world[0] - iconBounds.width()/2 
+				self.gworld[1] = world[1] - iconBounds.height()/2 #mirror the y coord
+
+				#        world[1] = self.h - (world[1] + iconBounds.height()/2) #mirror the y coord
+				#        print 'Ymax:', self.h
+				print 'Drawing goal ', self._goalID, ' at ', world
+				self._goalIcon.setPos(QPointF(self.gworld[0], self.gworld[1]))
+				self.robot_odom_changed.emit()
+
+			except:
+				pass
 
 	def update_bins(self):
 
@@ -924,8 +942,10 @@ class SimulationWindow(QWidget):
 		self.hazmap_sub = rospy.Subscriber('hazmap', Image, self.hazmap_cb)
 
 		#Get Goal Prepped ------------------------------------------------------
-		self.goal_titles, self.row = self.getGoals_client()
+		titles, row = self.getGoals_client()
 
+		self.goal_titles = self.goal_titles + tuple(titles)
+		self.row = self.row + tuple(row)
 
 		self.goals_changed.emit()
 		self.beliefOpacitySlider.valueChanged.connect(self.sliderChanged);

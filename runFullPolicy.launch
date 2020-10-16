@@ -4,7 +4,7 @@
     
     <arg name="launch_prefix" if="$(arg debug)" default="gdb -ex run --args"/>
     <arg name="launch_prefix" unless="$(arg debug)" default=""/>
-    <arg name="policy_package" value="new2.pkl"/>
+    <arg name="policy_package" value="current"/>
 
     <arg name="joy_dev" default="/dev/input/js0
 "/>
@@ -20,7 +20,7 @@
     
     <!-- Start some UI -->
     <group ns="ui">
-    	    <node pkg="traadre_dla" type="control1.py" name="interface" output="screen">
+    	    <node pkg="traadre_dla" type="full_interface.py" name="interface" output="screen">
 	    	  <remap from="dem" to="/policy/dem"/>
 		  <remap from="pose" to="/pose"/>
 		  <remap from="state" to="/state"/>

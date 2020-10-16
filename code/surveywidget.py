@@ -7,7 +7,7 @@ from PyQt5.QtGui import *;
 from PyQt5.QtCore import *;
 import rospy
 from traadre_msgs.msg import *
-from label_slider import LabeledSlider
+
 
 class SurveyWidget(QtWidgets.QWidget):
 	def __init__(self, parent=None):
@@ -64,16 +64,22 @@ class SurveyWidget(QtWidgets.QWidget):
 		  'To what extent do you agree with the following: The deliver truck is well designed.',  'To what extent do you agree with the following: In the future I would use like to use this rover to fulfill tasks.', \
 		   'In future interaction, to what extent would you trust the rover?',  'To what extent did you find the map useful?']
 		self.msg.questions = self.qs_list
+		self.r_list = ['[Left: Very Incapable, Right: Very Capable]','[Left: Very Incapable, Right: Very Capable]','[Left: Not at all, Right: Relied Heavily]','[Left: Very Inconsistently, Right: Very Consistently]',\
+		'[Left: Very poorly designed, Right: Very well designed]','[Left: It causes trouble, Right: Its necessary]','[Left: Not at all!, Right: A lot!]','[Left: Not at all!, Right: A lot!]']
 		self.s_list = [s1, s2, s3, s4, s5, s6, s7, s8]
 		self.h_list = [hbox1,hbox2,hbox3,hbox4,hbox5,hbox6,hbox7,hbox8]
 		for i in range(0,len(self.s_list)):
 			self.s_list[i].setMinimum(0)
-			self.s_list[i].setMaximum(5)
+			self.s_list[i].setMaximum(7)
 			self.s_list[i].setTickPosition(QSlider.TicksBelow)
 			self.s_list[i].setStyleSheet("background-color: beige; color: white")
 			self.q_list[i].setText(self.qs_list[i])
 			self.q_list[i].setStyleSheet("background-color: beige; color: black")
 			self.h_list[i].addWidget(self.q_list[i])
+			temp = QLabel()
+			temp.setText(self.r_list[i])
+			temp.setStyleSheet("background-color: beige; color: black")
+			self.h_list[i].addWidget(temp)
 			self.h_list[i].addWidget(self.s_list[i])
 
 

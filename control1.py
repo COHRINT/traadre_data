@@ -125,7 +125,7 @@ class SimulationWindow(QWidget):
 
 		self.minimapView.setScene(self.minimapScene);
 		self.minimapView.setStyleSheet("background-color: beige; border: 4px inset grey;")
-		self.layout.addWidget(self.minimapView,1,4,9,5);
+		self.layout.addWidget(self.minimapView,1,1,8,9);
 
 
 		#Add circle ---------------------------------------------
@@ -143,8 +143,46 @@ class SimulationWindow(QWidget):
 
 		sliderLayout.addWidget(self.beliefOpacitySlider,0,0);
 
-		self.layout.addLayout(sliderLayout,9,4,1,5) 
+		self.layout.addLayout(sliderLayout,9,1,1,9) 
 
+		#----------------------------------------------
+		self.stateLayout = QGridLayout();
+
+		stateGroup = QGroupBox()
+		stateGroup.setLayout(self.stateLayout)
+
+		stateGroup.setStyleSheet("background-color: beige; border: 4px inset grey; font: 15pt Lato")
+		self.time_remaining = 120
+
+		self.fuel = QLabel()
+		self.fuel.setStyleSheet("background-color: white")
+		self.timer = QLabel()
+		self.timer.setStyleSheet("background-color: white")
+		self.goal = QLabel()
+
+		self.goal.setStyleSheet("background-color: white")
+		self.score = QLabel()
+		self.score.setToolTip("Current score")
+		self.score.setStyleSheet("background-color: white")
+		self.shotClock = QTimer()
+
+		self.shotClock.timeout.connect(self.updateTime)
+
+
+		self.fuel.setText('')
+		self.goal.setText('Current Goal: ' + self._goalID)
+		self.timer.setText('Time Remaining: ' + str(self.time_remaining) + ' seconds')
+		self.score.setText('Current Score: ' + str(self.current_score))
+
+		self.stateLayout.addWidget(self.fuel,12,1,1,1); 
+		self.stateLayout.addWidget(self.goal,11,1);
+		self.stateLayout.addWidget(self.timer,11,2); 
+		self.stateLayout.addWidget(self.score,12,2); 
+		self.layout.addWidget(stateGroup,10,1,4,9)
+
+		#self.timer.setToolTip("Time remaining to make decision, at 0 there will be a penalty")
+		#self.timer.setStyleSheet("""QToolTip { background-color: black; color: white; border: black solid 1px }""")
+		#self.goal.setToolTip("Current navigation goal from [A,F]")
 
 		#------------------------------------------
 		self.pushLayout = QGridLayout();
@@ -175,6 +213,7 @@ class SimulationWindow(QWidget):
 		self.no_btn.setFont(QtGui.QFont('Lato', 12))
 
 		self.prev_btn = QPushButton('Previous Traverse',self)
+		self.prev_btn.setVisible(False)
 		self.prev_btn.setEnabled(False)
 		self.pushLayout.addWidget(self.prev_btn,9,10,1,4); 
 		self.prev_btn.setFixedSize(QSize(300,50))
@@ -184,6 +223,8 @@ class SimulationWindow(QWidget):
 		self.sq_label = QLabel()
 		self.sq = None
 		self.sq_label.setText('Solver Quality: ' + str(self.sq))
+		self.sq_label.setVisible(False)
+		self.sq_label.setEnabled(False)
 		self.pushLayout.addWidget(self.sq_label,9,3,1,4)
 		self.sq_label.setStyleSheet("background-color: white; border: 4px inset grey;")
 		self.sq_label.setFont(QtGui.QFont('Lato', 15))
@@ -208,21 +249,30 @@ class SimulationWindow(QWidget):
 		self.table.setMaximumHeight(self.table.verticalHeader().length()+31)
 		#self.table.setSizePolicy(QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Expanding))
 		self.table.resizeColumnsToContents()
+		self.table.setVisible(False)
+		self.table.setEnabled(False)
 		#self.table.resizeRowsToContents()
-
 
 		self.pushLayout.addWidget(self.table,1,1,10,8,Qt.AlignTop); 
 
-		self.time_remaining = 120
-		self.shotClock = QTimer()
-		self.timer = QLabel()
-		self.shotClock.timeout.connect(self.updateTime)
 
 
+		self.layout.addWidget(goGroup,10,11,4,12)
 
-		self.layout.addWidget(goGroup,10,1,4,11)
 
+		#-----------------------------------------------------
+		self.histLayout = QGridLayout();
 
+		histGroup = QGroupBox()
+		histGroup.setLayout(self.histLayout)
+
+		histGroup.setStyleSheet("QGroupBox {background-color: beige; border: 4px inset grey;}")
+		histGroup.setToolTip('Choose one of reward distribution bins')
+
+		histGroup.setVisible(False)
+		histGroup.setEnabled(False)
+
+		self.layout.addWidget(histGroup, 1,11,8,12)
 
 	def go_button(self):
 		self.buttonClicked.emit(1)
@@ -342,7 +392,9 @@ class SimulationWindow(QWidget):
 		self.paths = None
 		self.prev_time_remaining = self.time_remaining
 		self.prev_rewards = self.rewards
+		self.score.setText('Current Score: ' + str(self.current_score))
 		self.time_remaining = 120
+		self.timer.setText('Time Remaining: ' + str(self.time_remaining) + ' seconds')
 		self.shotClock.start(1000)
 		self.count = self.count +1
 		self.setEnabled(True)
@@ -727,6 +779,18 @@ class SimulationWindow(QWidget):
 			self.table.setItem(i, 4, avg)
 			self.table.setItem(i, 5, goal)
 
+	def drawIdeal(self):
+		reward, actions = self.getPerf_client(self._goalID)
+		y_min,y_max = self.hist.canvas.ax.get_ylim()
+
+		self.hist.canvas.ax.axvline(x=reward, linestyle = '--', color = '#00FF70', linewidth = 4)
+		self.hist.canvas.ax.plot(reward,0, marker = '^', markersize = 25, color = '#00FF70')
+		self.hist.canvas.ax.plot(reward,y_max, marker = 'v', markersize = 25, color = '#00FF70')
+
+		'''if reward in self.bins:
+			reward += 150'''
+
+		self.bins.append(reward)
 
 	def convertToGridCoords(self,i, width, height):
 		y = i//width
@@ -769,38 +833,33 @@ class SimulationWindow(QWidget):
 
 		self.max_reward = max(self.rewards)	
 
-		self.buildTable()
-		#self.count_rewards()
-		#self.update_bins()
 
+		try:
+			#Update the label's text:
+			self._goalIcon.setText(str(self._goalID))
+			self.goal.setText('Current Goal: ' + self._goalID)
+			#Pick up the world coordinates
+			self._goalLocations = [self._goal[1], self._goal[2]]
 
-		############Need to drop a wait for message, add to main too
-		#data = rospy.wait_for_message('current_goal', NamedGoal)
-		#self._goal = [data.id, data.pose.x, data.pose.y]
+			world = list(copy.deepcopy(self._goalLocations))
 
+			iconBounds = self._goalIcon.boundingRect()
 
-		#Update the label's text:
-		self._goalIcon.setText(str(self._goalID))
+			world[0] = world[0]/self.demDownsample
+			world[1] = world[1]/self.demDownsample
+			
+			#Adjust the world coords so that the icon is centered on the goal
+			self.gworld[0] = world[0] - iconBounds.width()/2 
+			self.gworld[1] = world[1] - iconBounds.height()/2 #mirror the y coord
 
-		#Pick up the world coordinates
-		self._goalLocations = [self._goal[1], self._goal[2]]
+			#        world[1] = self.h - (world[1] + iconBounds.height()/2) #mirror the y coord
+			#        print 'Ymax:', self.h
+			print 'Drawing goal ', self._goalID, ' at ', world
+			self._goalIcon.setPos(QPointF(self.gworld[0], self.gworld[1]))
+			self.robot_odom_changed.emit()
 
-		world = list(copy.deepcopy(self._goalLocations))
-
-		iconBounds = self._goalIcon.boundingRect()
-
-		world[0] = world[0]/self.demDownsample
-		world[1] = world[1]/self.demDownsample
-		
-		#Adjust the world coords so that the icon is centered on the goal
-		self.gworld[0] = world[0] - iconBounds.width()/2 
-		self.gworld[1] = world[1] - iconBounds.height()/2 #mirror the y coord
-
-		#        world[1] = self.h - (world[1] + iconBounds.height()/2) #mirror the y coord
-		#        print 'Ymax:', self.h
-		print 'Drawing goal ', self._goalID, ' at ', world
-		self._goalIcon.setPos(QPointF(self.gworld[0], self.gworld[1]))
-		self.robot_odom_changed.emit()
+		except:
+			pass
 
 	def update_bins(self):
 
