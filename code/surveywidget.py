@@ -70,7 +70,8 @@ class SurveyWidget(QtWidgets.QWidget):
 		self.h_list = [hbox1,hbox2,hbox3,hbox4,hbox5,hbox6,hbox7,hbox8]
 		for i in range(0,len(self.s_list)):
 			self.s_list[i].setMinimum(0)
-			self.s_list[i].setMaximum(7)
+			self.s_list[i].setMaximum(6)
+			self.s_list[i].setValue(3)
 			self.s_list[i].setTickPosition(QSlider.TicksBelow)
 			self.s_list[i].setStyleSheet("background-color: beige; color: white")
 			self.q_list[i].setText(self.qs_list[i])

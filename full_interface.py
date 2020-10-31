@@ -16,6 +16,7 @@ from traadre_msgs.srv import *
 from geometry_msgs.msg import *
 from sensor_msgs.msg import *
 from code.OA import *
+from code.SQ import *
 from code.plane_functions import *
 
 import matplotlib.pyplot as plt
@@ -495,7 +496,7 @@ class SimulationWindow(QWidget):
 		try:
 			goal = rospy.ServiceProxy('/policy/policy_server/GetMCSims', GetMCSims)
 			response = goal(id)
-			return response.rewards, response.results
+			return response.mcts_rewards, response.vi_rewards,response.results
 
 		except rospy.ServiceException, e:
 			print "Service call failed: %s"%e
@@ -580,7 +581,7 @@ class SimulationWindow(QWidget):
 
 		if event.xdata:
 			ax_min, ax_max = event.canvas.ax.get_xlim()
-			event.canvas.ax.set_xlim([0,ax_max])
+			event.canvas.ax.set_xlim([ax_min,ax_max])
 			try:
 				location = self.bins.index(min([x for x in self.bins if event.xdata <= x]))
 			except:
@@ -592,7 +593,7 @@ class SimulationWindow(QWidget):
 		except:
 			pass
 		if location < 6:
-			self.span = event.canvas.ax.axvspan(0, self.bins[location], color='red', alpha=0.5)
+			self.span = event.canvas.ax.axvspan(ax_min, self.bins[location], color='red', alpha=0.5)
 			self.notspan = event.canvas.ax.axvspan(self.bins[location], ax_max, color='green', alpha=0.15)
 		event.canvas.draw()
 
@@ -630,7 +631,7 @@ class SimulationWindow(QWidget):
 		std = "%.2f" % np.std(self.rewards)
 		samples = len(self.rewards)
 
-		self.hist.canvas.ax.set_xlim(0,max(self.rewards)+100)
+		self.hist.canvas.ax.set_xlim(min(self.rewards)-100,max(self.rewards)+100)
 
 		self.hist.canvas.ax.set_xlabel('Accumulated Reward')
 		self.hist.canvas.ax.set_ylabel('Samples out of ' + str(samples))
@@ -670,7 +671,6 @@ class SimulationWindow(QWidget):
 		tile_x = (float(self._dem.width())/20.0)/2
 		tile_y = (float(self._dem.height())/20.0)/2
 		#self.pathDict = {}
-
 		for i in self.paths:
 			x_norm = []
 			y_norm = []
@@ -689,6 +689,7 @@ class SimulationWindow(QWidget):
 		tile_x = (float(self._dem.width())/20.0)/2
 		tile_y = (float(self._dem.height())/20.0)/2
 		counter = 0
+
 		for i in self.paths:
 			x_norm = []
 			y_norm = []
@@ -742,29 +743,33 @@ class SimulationWindow(QWidget):
 		g5 = []
 		g6 = []
 
+
 		for i in range(0,len(self.rewards)):
-			if self.rewards[i] > self.bins[0]:
+			if self.rewards[i] >= self.bins[0]:
 				first.append(self.rewards[i])
 				g1.append(self.sim_results[i])
-			if self.rewards[i] > self.bins[1]:
+			if self.rewards[i] >= self.bins[1]:
 				sec.append(self.rewards[i])
 				g2.append(self.sim_results[i])
-			if self.rewards[i] > self.bins[2]:
+			if self.rewards[i] >= self.bins[2]:
 				thir.append(self.rewards[i])
 				g3.append(self.sim_results[i])
-			if self.rewards[i] > self.bins[3]:
+			if self.rewards[i] >= self.bins[3]:
 				four.append(self.rewards[i])
 				g4.append(self.sim_results[i])
-			if self.rewards[i] > self.bins[4]:
+			if self.rewards[i] >= self.bins[4]:
 				fifth.append(self.rewards[i])
 				g5.append(self.sim_results[i])
-			if self.rewards[i] > self.bins[5]:
+			if self.rewards[i] >= self.bins[5]:
 				sixth.append(self.rewards[i])
 				g6.append(self.sim_results[i])
 
 		lengths = [first, sec, thir, four, fifth,sixth]
 		goals = [g1,g2,g3,g4,g5,g6]
 
+		#print self.bins
+		#print lengths
+		#print goals
 		for i in range(self.num_options): 
 			traces = QTableWidgetItem(str(int(float(len(lengths[i]))/float((len(self.rewards)))*100)) + '%')
 			try:
@@ -781,6 +786,8 @@ class SimulationWindow(QWidget):
 	def drawIdeal(self):
 		reward, actions = self.getPerf_client(self._goalID)
 		y_min,y_max = self.hist.canvas.ax.get_ylim()
+
+		reward = reward - 100
 
 		self.hist.canvas.ax.axvline(x=reward, linestyle = '--', color = '#00FF70', linewidth = 4)
 		self.hist.canvas.ax.plot(reward,0, marker = '^', markersize = 25, color = '#00FF70')
@@ -813,18 +820,19 @@ class SimulationWindow(QWidget):
 		self.allGoalsDict = dict(self.allGoals)
 		
 		self._goalID = self.allGoals[self.count][0]
+		print len(self.allGoals), self.count,self._goalID
 
-
-		if self._goalID == 'S':
-			#self.count = 0
+		if self.count >= len(self.allGoals) or self._goalID == 'Z':
+			self.minimapScene.removeItem(self._goalIcon)
 			self._goalIcon = None
 			planeFlushPaint(self.pathPlane)
 			self.histLayout.removeWidget(self.hist)
+			self.setEnabled(False)
 			self.setCurrentHaz_client('/home/cohrint/catkin_ws/src/policy_server/config/new4.pkl')
-		elif self._goalID == 'K':
+		elif self._goalID == 'Z':
 			self.close()
 		else:
-
+			self.setEnabled(True)
 
 			self.setCurrentGoal_client(self._goalID)	
 
@@ -840,7 +848,7 @@ class SimulationWindow(QWidget):
 
 			self.bins = self.getBins_client(self._goalID)
 			self.bins = list(self.bins)
-			self.rewards, self.sim_results = self.getRewards_client(self._goalID)
+			self.rewards, self.vi_rewards, self.sim_results = self.getRewards_client(self._goalID)
 
 			self.max_reward = max(self.rewards)	
 
@@ -851,6 +859,9 @@ class SimulationWindow(QWidget):
 			self.avg_paths()
 			self.count_rewards()
 			self.update_bins()
+
+			self.sq = solverQuality(np.array(self.rewards), np.array(self.vi_rewards))
+			self.sq_label.setText('Solver Quality: ' + str(self.sq))
 
 
 
@@ -880,7 +891,6 @@ class SimulationWindow(QWidget):
 
 			except:
 				pass
-
 	def update_bins(self):
 
 		labels = {-1: 'Very Bad', -0.5: 'Bad', -0.1: 'Fair', 0.1: 'Good', 0.5 : 'Very good'}
