@@ -14,16 +14,16 @@ from traadre_msgs.msg import *
 
 # Matplotlib widget
 class MplWidget(QtWidgets.QWidget):
-	def __init__(self, bins):
+	def __init__(self):
 		QtWidgets.QWidget.__init__(self)   # Inherit from QWidget
-		self.canvas = MplCanvas(bins)                  # Create canvas object
+		self.canvas = MplCanvas()                  # Create canvas object
 		self.vbl = QtWidgets.QVBoxLayout()         # Set box for plotting
 		self.vbl.addWidget(self.canvas)
 		self.setLayout(self.vbl)
 
 
 class MplCanvas(Canvas):
-		def __init__(self,bins):
+		def __init__(self):
 			plt.rcParams.update({'font.size': 15})
 
 			self.fig = Figure()

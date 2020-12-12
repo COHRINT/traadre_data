@@ -510,7 +510,7 @@ class SimulationWindow(QWidget):
 		try:
 			goal = rospy.ServiceProxy('/policy/policy_server/GetMCSims', GetMCSims)
 			response = goal(id)
-			return response.rewards, response.results
+			return response.mcts_rewards, response.vi_rewards,response.results
 
 		except rospy.ServiceException, e:
 			print "Service call failed: %s"%e
@@ -835,7 +835,7 @@ class SimulationWindow(QWidget):
 
 		self.bins = self.getBins_client(self._goalID)
 		self.bins = list(self.bins)
-		self.rewards, self.sim_results = self.getRewards_client(self._goalID)
+		self.rewards, self.vi_rewards,self.sim_results = self.getRewards_client(self._goalID)
 
 		self.max_reward = max(self.rewards)	
 

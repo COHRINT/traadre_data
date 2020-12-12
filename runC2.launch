@@ -4,13 +4,13 @@
     
     <arg name="launch_prefix" if="$(arg debug)" default="gdb -ex run --args"/>
     <arg name="launch_prefix" unless="$(arg debug)" default=""/>
-    <arg name="policy_package" value="current"/>
+    <arg name="policy_package" value="sssmcts"/>
 
     <arg name="joy_dev" default="/dev/input/js0
 "/>
     
     <group ns="policy">
-    	   <node pkg="policy_server" type="PolicyServer.py" name="policy_server" output="screen">
+    	   <node pkg="policy_server" type="PolicyServerMCTS.py" name="policy_server" output="screen">
 	   	 <param name="policy" value="$(find policy_server)/config/$(arg policy_package)" />
 		 <remap from="state" to="/state" />
 	   </node>

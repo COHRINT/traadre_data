@@ -30,6 +30,7 @@ import matplotlib.pyplot as plt
 from cv_bridge import CvBridge, CvBridgeError
 
 from code.mplwidget import MplWidget
+from code.sqcomparison import SQComp
 from code.surveywidget import SurveyWidget
 from code.historywidget import HistoryWidget
 
@@ -221,17 +222,22 @@ class SimulationWindow(QWidget):
 		self.prev_btn.setFixedSize(QSize(300,50))
 		self.prev_btn.setStyleSheet("background-color: grey; color: white")
 		self.prev_btn.setFont(QtGui.QFont('Lato', 12))
-		
+
+		self.sq_btn = QPushButton('View',self)
+		self.pushLayout.addWidget(self.sq_btn,9,6,1,1)
+		self.sq_btn.setStyleSheet("background-color: green; color: white")
+		self.sq_btn.setFont(QtGui.QFont('Lato', 12))
+
 		self.sq_label = QLabel()
 		self.sq = None
 		self.sq_label.setText('Solver Quality: ' + str(self.sq))
-		self.pushLayout.addWidget(self.sq_label,9,3,1,4)
+		self.pushLayout.addWidget(self.sq_label,9,3,1,3)
 		self.sq_label.setStyleSheet("background-color: white; border: 4px inset grey;")
 		self.sq_label.setFont(QtGui.QFont('Lato', 15))
 
 		self.go_btn.clicked.connect(self.go_button)
 		self.no_btn.clicked.connect(self.no_button)
-
+		self.sq_btn.clicked.connect(self.sq_button)
 		self.prev_btn.clicked.connect(self.traverse_history)
 
 		#--------------------------------------------------------------------
@@ -269,6 +275,18 @@ class SimulationWindow(QWidget):
 
 		self.layout.addWidget(histGroup, 1,11,8,12)
 
+	def sq_button(self):
+		print "Opening a new popup window..."
+		self.setEnabled(False)
+		self.sq_compare = SQComp(self.rewards,self.vi_rewards)
+		self.sq_compare.setGeometry(QRect(100, 100, 1000, 1000))
+		self.sq_compare.submit_btn.clicked.connect(self.sq_submit)
+		self.sq_compare.show()
+
+	def sq_submit(self):
+		self.sq_compare.close()
+		self.setEnabled(True)
+
 	def go_button(self):
 		self.buttonClicked.emit(1)
 
@@ -297,8 +315,8 @@ class SimulationWindow(QWidget):
 
 		if self.time_remaining < 10:
 			self.timer.setStyleSheet("background-color: rgba(255,0,0,150)")
-		if self.time_remaining == 0:
-			self.buttonClicked.emit(2)
+		#if self.time_remaining == 0:
+			#self.buttonClicked.emit(2)
 
 	def option_cb(self, data):
 		self.option_changed.emit(data.option, data.boundary)
@@ -325,12 +343,12 @@ class SimulationWindow(QWidget):
 						x,y = self.convertToGridCoords(j,20,20)
 						x_tmp.append(int(float(x/20.0)*self._dem.width() + tile_x))
 						y_tmp.append(int(float(y/20.0)*self._dem.height() + tile_y))
-					planeAddPaint(self.pathPlane, 200, x_tmp, y_tmp, QColor(250,251,0,50))
+					planeAddPaint(self.pathPlane, 200, x_tmp, y_tmp, QColor(250,251,0,30))
 
 	def operator_toast(self, button):
 		msg = TraverseDecision()
 
-		_,_, result = self.getResults_client(self._goalID,'present')
+		_,_, result = self.getResults_client(self._goalID)
 		if button == 1 and result == 1:
 			self.score_delta = 1
 		elif button == 1 and result == 0: 
@@ -363,15 +381,16 @@ class SimulationWindow(QWidget):
 		print "Opening a new popup window..."
 		self.setEnabled(False)
 		dem = self._dem_item.pixmap()
-		haz = self.hazmapItem.pixmap()
+		haz = self.prev_haz
 		time = self.prev_time_remaining
 		goalID = self.allGoals[self.count-1][0]
 
 		goalLoc = self.allGoals[self.count-1][1]
 
-		actions,reward,result= self.getResults_client(goalID,'past')
+		actions,reward,result= self.getResults_client(goalID)
 
-		self.trav_hist = HistoryWidget(dem,haz,time,goalID,goalLoc,actions,reward,result,self.prev_rewards,self.score_delta)
+
+		self.trav_hist = HistoryWidget(dem,haz,time,goalID,goalLoc,actions,reward,result,self.prev_rewards,self.prev_sq,self.score_delta)
 		self.trav_hist.setGeometry(QRect(100, 100, 1000, 1000))
 		self.trav_hist.submit_btn.clicked.connect(self.trav_submit)
 		self.trav_hist.show()
@@ -384,6 +403,7 @@ class SimulationWindow(QWidget):
 		self.paths = None
 		self.prev_time_remaining = self.time_remaining
 		self.prev_rewards = self.rewards
+		self.prev_sq = self.sq
 		self.score.setText('Current Score: ' + str(self.current_score))
 		self.time_remaining = 120
 		self.timer.setText('Time Remaining: ' + str(self.time_remaining) + ' seconds')
@@ -418,8 +438,8 @@ class SimulationWindow(QWidget):
 
 		if val == True:
 			ax_min, ax_max = self.hist.canvas.ax.get_xlim()
-			self.hist.canvas.ax.set_xlim([0,ax_max])
-			self.span = self.hist.canvas.ax.axvspan(0, self.bins[box], color='red', alpha=0.5)
+			self.hist.canvas.ax.set_xlim([ax_min,ax_max])
+			self.span = self.hist.canvas.ax.axvspan(ax_min, self.bins[box], color='red', alpha=0.5)
 			self.notspan = self.hist.canvas.ax.axvspan(self.bins[box], ax_max, color='green', alpha=0.15)
 			self.hist.canvas.draw()
 
@@ -510,10 +530,10 @@ class SimulationWindow(QWidget):
 		except rospy.ServiceException, e:
 			print "Service call failed: %s"%e
 
-	def getResults_client(self, id, temp):
+	def getResults_client(self, id):
 		try:
 			goal = rospy.ServiceProxy('/policy/policy_server/GetResults', GetResults)
-			response = goal(id, temp)
+			response = goal(id)
 
 			return response.actions, response.reward, response.result
 		except rospy.ServiceException, e:
@@ -613,7 +633,7 @@ class SimulationWindow(QWidget):
 	def makeHist(self):
 		if self.count != 0:
 			self.histLayout.removeWidget(self.hist)
-		self.hist = MplWidget(self.bins)
+		self.hist = MplWidget()
 		self.hist.setStyleSheet("MplWidget {background-color: white; border: 4px inset grey;}")
 
 
@@ -631,7 +651,7 @@ class SimulationWindow(QWidget):
 		std = "%.2f" % np.std(self.rewards)
 		samples = len(self.rewards)
 
-		self.hist.canvas.ax.set_xlim(min(self.rewards)-100,max(self.rewards)+100)
+		self.hist.canvas.ax.set_xlim(min(self.rewards)-10, max(self.rewards)+10)
 
 		self.hist.canvas.ax.set_xlabel('Accumulated Reward')
 		self.hist.canvas.ax.set_ylabel('Samples out of ' + str(samples))
@@ -710,17 +730,17 @@ class SimulationWindow(QWidget):
 		lengths = []
 
 		for i in range(0,len(self.paths)):
-			if int(self.paths[i].reward) > self.bins[0]:
+			if int(self.paths[i].reward) < self.bins[0]:
 				first.append(len(self.paths[i].elements))
-			if int(self.paths[i].reward) > self.bins[1]:
+			if int(self.paths[i].reward) < self.bins[1]:
 				sec.append(len(self.paths[i].elements))
-			if int(self.paths[i].reward) > self.bins[2]:
+			if int(self.paths[i].reward) < self.bins[2]:
 				thir.append(len(self.paths[i].elements))
-			if int(self.paths[i].reward) > self.bins[3]:
+			if int(self.paths[i].reward) < self.bins[3]:
 				four.append(len(self.paths[i].elements))
-			if int(self.paths[i].reward) > self.bins[4]:
+			if int(self.paths[i].reward) < self.bins[4]:
 				fifth.append(len(self.paths[i].elements))
-			if int(self.paths[i].reward) > self.bins[5]:
+			if int(self.paths[i].reward) < self.bins[5]:
 				sixth.append(len(self.paths[i].elements))
 		lengths = [first, sec, thir, four, fifth, sixth]
 		for i in range(self.num_options): 
@@ -787,7 +807,7 @@ class SimulationWindow(QWidget):
 		reward, actions = self.getPerf_client(self._goalID)
 		y_min,y_max = self.hist.canvas.ax.get_ylim()
 
-		reward = reward - 100
+		reward = 0 #subtract further?
 
 		self.hist.canvas.ax.axvline(x=reward, linestyle = '--', color = '#00FF70', linewidth = 4)
 		self.hist.canvas.ax.plot(reward,0, marker = '^', markersize = 25, color = '#00FF70')
@@ -823,6 +843,7 @@ class SimulationWindow(QWidget):
 		print len(self.allGoals), self.count,self._goalID
 
 		if self.count >= len(self.allGoals) or self._goalID == 'Z':
+			self.prev_haz = self.hazmapItem.pixmap()
 			self.minimapScene.removeItem(self._goalIcon)
 			self._goalIcon = None
 			planeFlushPaint(self.pathPlane)
@@ -844,10 +865,13 @@ class SimulationWindow(QWidget):
 			if self.count == 1:
 				self.prev_btn.setEnabled(True)
 				self.prev_btn.setStyleSheet('background-color: green; color: white')
-
+				#self.prev_haz = self.hazmapItem.pixmap()
 
 			self.bins = self.getBins_client(self._goalID)
 			self.bins = list(self.bins)
+
+			#Reverse for negative rewards
+			#self.bins = self.bins[::-1]
 			self.rewards, self.vi_rewards, self.sim_results = self.getRewards_client(self._goalID)
 
 			self.max_reward = max(self.rewards)	
@@ -860,7 +884,7 @@ class SimulationWindow(QWidget):
 			self.count_rewards()
 			self.update_bins()
 
-			self.sq = solverQuality(np.array(self.rewards), np.array(self.vi_rewards))
+			self.sq = solverQuality(np.array(self.rewards),np.array(self.vi_rewards))
 			self.sq_label.setText('Solver Quality: ' + str(self.sq))
 
 
@@ -891,6 +915,8 @@ class SimulationWindow(QWidget):
 
 			except:
 				pass
+
+
 	def update_bins(self):
 
 		labels = {-1: 'Very Bad', -0.5: 'Bad', -0.1: 'Fair', 0.1: 'Good', 0.5 : 'Very good'}
@@ -1035,7 +1061,7 @@ class SimulationWindow(QWidget):
 		trans.scale(self.w/hazTrans.width(),self.h/hazTrans.height())
 		#trans.translate(0, -bounds.height())
 		self.hazmapItem.setTransform(trans)
-		
+		#self.prev_haz = self.hazmapItem.pixmap()
 		# Everything must be mirrored
 		#self._mirror(self.hazmapItem)
 		
